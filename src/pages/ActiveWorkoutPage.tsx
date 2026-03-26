@@ -7,6 +7,7 @@ import { useTemplateExercises } from '../hooks/useTemplates';
 import { usePreviousSets } from '../hooks/useWorkoutHistory';
 import type { ActiveExercise, ActiveSet, SplitTemplate, WorkoutSet } from '../types/database';
 import LoadingSpinner from '../components/LoadingSpinner';
+import RestTimer from '../components/RestTimer';
 import { format } from 'date-fns';
 
 function generateId() {
@@ -27,6 +28,7 @@ export default function ActiveWorkoutPage() {
   const [startedAt] = useState(new Date().toISOString());
   const [saving, setSaving] = useState(false);
   const [initialized, setInitialized] = useState(false);
+  const [showTimer, setShowTimer] = useState(false);
 
   // Store previous session data per exercise so add/remove sets can reference it
   const previousDataRef = useRef<Record<string, WorkoutSet[]>>({});
@@ -116,8 +118,13 @@ export default function ActiveWorkoutPage() {
   const toggleSetComplete = useCallback((setId: string) => {
     setCompletedSets((prev) => {
       const next = new Set(prev);
-      if (next.has(setId)) next.delete(setId);
-      else next.add(setId);
+      if (next.has(setId)) {
+        next.delete(setId);
+      } else {
+        next.add(setId);
+        // Start rest timer when completing a set
+        setShowTimer(true);
+      }
       return next;
     });
   }, []);
@@ -358,6 +365,11 @@ export default function ActiveWorkoutPage() {
           );
         })}
       </div>
+
+      {/* Rest Timer */}
+      {showTimer && (
+        <RestTimer onClose={() => setShowTimer(false)} />
+      )}
     </div>
   );
 }
