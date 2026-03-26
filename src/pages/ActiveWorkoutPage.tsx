@@ -43,7 +43,11 @@ export default function ActiveWorkoutPage() {
 
   // Build active exercises from template + previous data
   useEffect(() => {
-    if (teLoading || initialized || templateExercises.length === 0) return;
+    if (teLoading || initialized) return;
+    if (templateExercises.length === 0) {
+      setInitialized(true);
+      return;
+    }
 
     const buildExercises = async () => {
       const activeExercises: ActiveExercise[] = [];
