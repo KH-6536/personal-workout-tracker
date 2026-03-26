@@ -32,8 +32,15 @@ function TemplateDetail({
     templateExercises.map((te) => te.exercise?.name?.toLowerCase())
   );
 
-  // Filter presets by muscle group and search, excluding already-added
-  const filteredPresets = PRESET_EXERCISES.filter((p) => {
+  // Combine presets with user's custom exercises (deduped by name)
+  const presetNames = new Set(PRESET_EXERCISES.map((p) => p.name.toLowerCase()));
+  const customExercises = exercises
+    .filter((e) => !presetNames.has(e.name.toLowerCase()))
+    .map((e) => ({ name: e.name, muscleGroup: e.muscle_group || 'Other' }));
+  const allExercises = [...PRESET_EXERCISES, ...customExercises];
+
+  // Filter by muscle group and search, excluding already-added
+  const filteredPresets = allExercises.filter((p) => {
     if (templateExerciseNames.has(p.name.toLowerCase())) return false;
     if (muscleFilter !== 'All' && p.muscleGroup !== muscleFilter) return false;
     if (searchQuery && !p.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
@@ -66,11 +73,27 @@ function TemplateDetail({
     if (!customName.trim()) return;
     setAdding(customName);
     try {
-      const ex = await addExercise(customName.trim(), customMuscle.trim() || undefined);
-      if (ex) {
-        const nextOrder = templateExercises.length;
-        await addExerciseToTemplate(ex.id, nextOrder);
+      // Check if exercise already exists in user's library
+      const existing = exercises.find(
+        (e) => e.name.toLowerCase() === customName.trim().toLowerCase()
+      );
+      let exerciseId: string;
+
+      if (existing) {
+        exerciseId = existing.id;
+      } else {
+        const created = await addExercise(customName.trim(), customMuscle.trim() || undefined);
+        if (!created) return;
+        exerciseId = created.id;
       }
+
+      // Check if already in this template
+      const alreadyInTemplate = templateExercises.some((te) => te.exercise_id === exerciseId);
+      if (!alreadyInTemplate) {
+        const nextOrder = templateExercises.length;
+        await addExerciseToTemplate(exerciseId, nextOrder);
+      }
+
       setCustomName('');
       setCustomMuscle('');
       setShowCustom(false);
