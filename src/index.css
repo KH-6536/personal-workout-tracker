@@ -1021,9 +1021,20 @@ textarea {
   border-bottom: 1px solid var(--border);
 }
 
-.grip-icon {
-  color: var(--text-muted);
+.te-reorder {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
   flex-shrink: 0;
+}
+
+.te-reorder .btn-icon-small {
+  padding: 0.15rem;
+}
+
+.te-reorder .btn-icon-small:disabled {
+  opacity: 0.2;
+  cursor: default;
 }
 
 .te-name {
@@ -1031,9 +1042,24 @@ textarea {
   font-weight: 500;
 }
 
-.te-sets {
+.te-sets-control {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.te-sets-value {
   font-size: 0.8rem;
-  color: var(--text-muted);
+  color: var(--text-secondary);
+  min-width: 2.5rem;
+  text-align: center;
+  font-weight: 500;
+}
+
+.te-sets-control .btn-icon-small:disabled {
+  opacity: 0.2;
+  cursor: default;
 }
 
 .empty-text {
