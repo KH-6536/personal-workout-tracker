@@ -1238,6 +1238,168 @@ textarea {
 }
 
 /* ============================================
+   Rest Timer
+   ============================================ */
+
+.rest-timer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 200;
+  padding: 1rem;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.rest-timer-card {
+  width: 100%;
+  max-width: 400px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius) var(--radius) 0 0;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  border: 1px solid var(--border);
+  border-bottom: none;
+  animation: slideUp 0.25s ease;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.rest-timer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.rest-timer-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Circular timer */
+.timer-circle-container {
+  position: relative;
+  width: 160px;
+  height: 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.timer-circle-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.timer-circle-bg {
+  stroke: var(--border);
+}
+
+.timer-circle-progress {
+  stroke: var(--accent);
+}
+
+.timer-display {
+  font-size: 2.5rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+  z-index: 1;
+}
+
+.timer-finished {
+  color: var(--success);
+  animation: pulse 0.8s ease infinite alternate;
+}
+
+@keyframes pulse {
+  from { opacity: 1; }
+  to { opacity: 0.4; }
+}
+
+/* Adjust controls */
+.timer-adjust {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.timer-pause-btn {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+  background: none;
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.timer-pause-btn:hover {
+  background: var(--accent);
+  color: white;
+}
+
+/* Presets */
+.timer-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  justify-content: center;
+}
+
+.timer-preset-btn {
+  padding: 0.35rem 0.7rem;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: none;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-variant-numeric: tabular-nums;
+}
+
+.timer-preset-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.timer-preset-btn.active {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.timer-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+/* ============================================
    Responsive - tablet+
    ============================================ */
 
@@ -1248,5 +1410,14 @@ textarea {
 
   .set-input-field {
     max-width: 100px;
+  }
+
+  .rest-timer-overlay {
+    align-items: center;
+  }
+
+  .rest-timer-card {
+    border-radius: var(--radius);
+    border-bottom: 1px solid var(--border);
   }
 }
