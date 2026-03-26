@@ -1097,6 +1097,121 @@ textarea {
 }
 
 /* ============================================
+   Exercise Picker
+   ============================================ */
+
+.exercise-picker {
+  margin-top: 0.75rem;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.75rem;
+}
+
+.picker-search {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.picker-search-icon {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.picker-search-input {
+  flex: 1;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  outline: none;
+}
+
+.picker-search-input::placeholder {
+  color: var(--text-muted);
+}
+
+.picker-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.75rem;
+}
+
+.filter-chip {
+  padding: 0.3rem 0.65rem;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: none;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.filter-chip:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.filter-chip.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+.picker-list {
+  max-height: 240px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.picker-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.55rem 0.65rem;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s;
+}
+
+.picker-item:hover {
+  background: var(--bg-hover);
+}
+
+.picker-item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.picker-item-name {
+  font-weight: 500;
+}
+
+.picker-item-group {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  margin-left: 0.5rem;
+}
+
+/* ============================================
    Responsive - tablet+
    ============================================ */
 

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Trash2, Edit3, X, Check, ChevronDown, ChevronUp, GripVertical } from 'lucide-react';
+import { Plus, Trash2, Edit3, X, Check, ChevronDown, ChevronUp, GripVertical, Search } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useTemplates, useTemplateExercises } from '../hooks/useTemplates';
 import { useExercises } from '../hooks/useExercises';
@@ -7,6 +7,7 @@ import { useSchedule } from '../hooks/useSchedule';
 import { AppHeader } from '../components/Layout';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { DAY_NAMES, type DayOfWeek } from '../types/database';
+import { PRESET_EXERCISES, MUSCLE_GROUPS } from '../lib/exercises';
 
 function TemplateDetail({
   templateId,
@@ -18,34 +19,65 @@ function TemplateDetail({
   const { templateExercises, loading, addExerciseToTemplate, removeExerciseFromTemplate } =
     useTemplateExercises(templateId);
   const { exercises, addExercise } = useExercises(userId);
-  const [showAdd, setShowAdd] = useState(false);
-  const [newExName, setNewExName] = useState('');
-  const [newExMuscle, setNewExMuscle] = useState('');
-  const [selectedExId, setSelectedExId] = useState('');
+  const [showPicker, setShowPicker] = useState(false);
+  const [muscleFilter, setMuscleFilter] = useState('All');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showCustom, setShowCustom] = useState(false);
+  const [customName, setCustomName] = useState('');
+  const [customMuscle, setCustomMuscle] = useState('');
+  const [adding, setAdding] = useState<string | null>(null);
 
-  const handleAddExisting = async () => {
-    if (!selectedExId) return;
-    const nextOrder = templateExercises.length;
-    await addExerciseToTemplate(selectedExId, nextOrder);
-    setSelectedExId('');
-  };
-
-  const handleCreateAndAdd = async () => {
-    if (!newExName.trim()) return;
-    const ex = await addExercise(newExName.trim(), newExMuscle.trim());
-    if (ex) {
-      const nextOrder = templateExercises.length;
-      await addExerciseToTemplate(ex.id, nextOrder);
-    }
-    setNewExName('');
-    setNewExMuscle('');
-    setShowAdd(false);
-  };
-
-  // Exercises not already in this template
-  const availableExercises = exercises.filter(
-    (e) => !templateExercises.some((te) => te.exercise_id === e.id)
+  // Names already in this template
+  const templateExerciseNames = new Set(
+    templateExercises.map((te) => te.exercise?.name?.toLowerCase())
   );
+
+  // Filter presets by muscle group and search, excluding already-added
+  const filteredPresets = PRESET_EXERCISES.filter((p) => {
+    if (templateExerciseNames.has(p.name.toLowerCase())) return false;
+    if (muscleFilter !== 'All' && p.muscleGroup !== muscleFilter) return false;
+    if (searchQuery && !p.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+    return true;
+  });
+
+  const handlePickPreset = async (name: string, muscleGroup: string) => {
+    setAdding(name);
+    try {
+      // Check if exercise already exists in user's library
+      const existing = exercises.find((e) => e.name.toLowerCase() === name.toLowerCase());
+      let exerciseId: string;
+
+      if (existing) {
+        exerciseId = existing.id;
+      } else {
+        const created = await addExercise(name, muscleGroup);
+        if (!created) return;
+        exerciseId = created.id;
+      }
+
+      const nextOrder = templateExercises.length;
+      await addExerciseToTemplate(exerciseId, nextOrder);
+    } finally {
+      setAdding(null);
+    }
+  };
+
+  const handleAddCustom = async () => {
+    if (!customName.trim()) return;
+    setAdding(customName);
+    try {
+      const ex = await addExercise(customName.trim(), customMuscle.trim() || undefined);
+      if (ex) {
+        const nextOrder = templateExercises.length;
+        await addExerciseToTemplate(ex.id, nextOrder);
+      }
+      setCustomName('');
+      setCustomMuscle('');
+      setShowCustom(false);
+    } finally {
+      setAdding(null);
+    }
+  };
 
   if (loading) return <LoadingSpinner />;
 
@@ -70,64 +102,115 @@ function TemplateDetail({
         </div>
       ))}
 
-      {/* Add exercise controls */}
-      <div className="add-exercise-section">
-        {availableExercises.length > 0 && (
-          <div className="add-existing">
-            <select
-              value={selectedExId}
-              onChange={(e) => setSelectedExId(e.target.value)}
-              className="select-field"
-            >
-              <option value="">Select exercise...</option>
-              {availableExercises.map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.name}
-                </option>
-              ))}
-            </select>
-            <button
-              className="btn btn-outline btn-small"
-              onClick={handleAddExisting}
-              disabled={!selectedExId}
-            >
-              <Plus size={14} /> Add
-            </button>
-          </div>
-        )}
-
-        {!showAdd ? (
-          <button className="btn btn-outline btn-small" onClick={() => setShowAdd(true)}>
-            <Plus size={14} /> New Exercise
-          </button>
-        ) : (
-          <div className="new-exercise-form">
+      {/* Add exercise */}
+      {!showPicker ? (
+        <button
+          className="btn btn-outline btn-full"
+          style={{ marginTop: '0.75rem' }}
+          onClick={() => setShowPicker(true)}
+        >
+          <Plus size={16} /> Add Exercise
+        </button>
+      ) : (
+        <div className="exercise-picker">
+          {/* Search bar */}
+          <div className="picker-search">
+            <Search size={16} className="picker-search-icon" />
             <input
               type="text"
-              placeholder="Exercise name"
-              value={newExName}
-              onChange={(e) => setNewExName(e.target.value)}
-              className="input-field"
+              placeholder="Search exercises..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="picker-search-input"
               autoFocus
             />
-            <input
-              type="text"
-              placeholder="Muscle group (optional)"
-              value={newExMuscle}
-              onChange={(e) => setNewExMuscle(e.target.value)}
-              className="input-field"
-            />
-            <div className="form-actions">
-              <button className="btn btn-primary btn-small" onClick={handleCreateAndAdd}>
-                <Check size={14} /> Add
-              </button>
-              <button className="btn btn-outline btn-small" onClick={() => setShowAdd(false)}>
-                <X size={14} /> Cancel
-              </button>
-            </div>
+            <button className="btn-icon-small" onClick={() => { setShowPicker(false); setSearchQuery(''); setMuscleFilter('All'); }}>
+              <X size={16} />
+            </button>
           </div>
-        )}
-      </div>
+
+          {/* Muscle group filter chips */}
+          <div className="picker-filters">
+            <button
+              className={`filter-chip ${muscleFilter === 'All' ? 'active' : ''}`}
+              onClick={() => setMuscleFilter('All')}
+            >
+              All
+            </button>
+            {MUSCLE_GROUPS.map((mg) => (
+              <button
+                key={mg}
+                className={`filter-chip ${muscleFilter === mg ? 'active' : ''}`}
+                onClick={() => setMuscleFilter(mg)}
+              >
+                {mg}
+              </button>
+            ))}
+          </div>
+
+          {/* Exercise list */}
+          <div className="picker-list">
+            {filteredPresets.map((p) => (
+              <button
+                key={p.name}
+                className="picker-item"
+                onClick={() => handlePickPreset(p.name, p.muscleGroup)}
+                disabled={adding !== null}
+              >
+                <span className="picker-item-name">
+                  {adding === p.name ? 'Adding...' : p.name}
+                </span>
+                <span className="picker-item-group">{p.muscleGroup}</span>
+              </button>
+            ))}
+            {filteredPresets.length === 0 && (
+              <p className="empty-text" style={{ padding: '0.75rem 0' }}>
+                No matching exercises.
+              </p>
+            )}
+          </div>
+
+          {/* Custom exercise option */}
+          {!showCustom ? (
+            <button
+              className="btn btn-outline btn-small"
+              style={{ marginTop: '0.5rem' }}
+              onClick={() => setShowCustom(true)}
+            >
+              <Plus size={14} /> Custom Exercise
+            </button>
+          ) : (
+            <div className="new-exercise-form">
+              <input
+                type="text"
+                placeholder="Exercise name"
+                value={customName}
+                onChange={(e) => setCustomName(e.target.value)}
+                className="input-field"
+                autoFocus
+              />
+              <select
+                value={customMuscle}
+                onChange={(e) => setCustomMuscle(e.target.value)}
+                className="select-field"
+              >
+                <option value="">Muscle group (optional)</option>
+                {MUSCLE_GROUPS.map((mg) => (
+                  <option key={mg} value={mg}>{mg}</option>
+                ))}
+              </select>
+              <div className="form-actions">
+                <button className="btn btn-primary btn-small" onClick={handleAddCustom} disabled={adding !== null}>
+                  <Check size={14} /> Add
+                </button>
+                <button className="btn btn-outline btn-small" onClick={() => setShowCustom(false)}>
+                  <X size={14} /> Cancel
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
