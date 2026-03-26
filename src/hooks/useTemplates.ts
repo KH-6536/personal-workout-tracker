@@ -121,12 +121,45 @@ export function useTemplateExercises(templateId: string | undefined) {
     );
   }, []);
 
+  const updateDefaultSets = useCallback(async (id: string, defaultSets: number) => {
+    if (defaultSets < 1) return;
+    const { error } = await supabase
+      .from('template_exercises')
+      .update({ default_sets: defaultSets })
+      .eq('id', id);
+    if (error) throw error;
+    setTemplateExercises((prev) =>
+      prev.map((te) => (te.id === id ? { ...te, default_sets: defaultSets } : te))
+    );
+  }, []);
+
+  const swapExercises = useCallback(async (indexA: number, indexB: number) => {
+    setTemplateExercises((prev) => {
+      if (indexA < 0 || indexB < 0 || indexA >= prev.length || indexB >= prev.length) return prev;
+      const a = prev[indexA];
+      const b = prev[indexB];
+      // Swap sort_order values in DB
+      Promise.all([
+        supabase.from('template_exercises').update({ sort_order: b.sort_order }).eq('id', a.id),
+        supabase.from('template_exercises').update({ sort_order: a.sort_order }).eq('id', b.id),
+      ]);
+      // Swap locally
+      const next = [...prev];
+      const tempOrder = a.sort_order;
+      next[indexA] = { ...a, sort_order: b.sort_order };
+      next[indexB] = { ...b, sort_order: tempOrder };
+      return next.sort((x, y) => x.sort_order - y.sort_order);
+    });
+  }, []);
+
   return {
     templateExercises,
     loading,
     addExerciseToTemplate,
     removeExerciseFromTemplate,
     updateSortOrder,
+    updateDefaultSets,
+    swapExercises,
     refetch: fetchTemplateExercises,
   };
 }

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Trash2, Edit3, X, Check, ChevronDown, ChevronUp, GripVertical, Search } from 'lucide-react';
+import { Plus, Minus, Trash2, Edit3, X, Check, ChevronDown, ChevronUp, ArrowUp, ArrowDown, Search } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useTemplates, useTemplateExercises } from '../hooks/useTemplates';
 import { useExercises } from '../hooks/useExercises';
@@ -16,7 +16,7 @@ function TemplateDetail({
   templateId: string;
   userId: string;
 }) {
-  const { templateExercises, loading, addExerciseToTemplate, removeExerciseFromTemplate } =
+  const { templateExercises, loading, addExerciseToTemplate, removeExerciseFromTemplate, updateDefaultSets, swapExercises } =
     useTemplateExercises(templateId);
   const { exercises, addExercise } = useExercises(userId);
   const [showPicker, setShowPicker] = useState(false);
@@ -88,11 +88,41 @@ function TemplateDetail({
         <p className="empty-text">No exercises yet. Add some below.</p>
       )}
 
-      {templateExercises.map((te) => (
+      {templateExercises.map((te, index) => (
         <div key={te.id} className="template-exercise-item">
-          <GripVertical size={16} className="grip-icon" />
+          <div className="te-reorder">
+            <button
+              className="btn-icon-small"
+              onClick={() => swapExercises(index, index - 1)}
+              disabled={index === 0}
+            >
+              <ArrowUp size={14} />
+            </button>
+            <button
+              className="btn-icon-small"
+              onClick={() => swapExercises(index, index + 1)}
+              disabled={index === templateExercises.length - 1}
+            >
+              <ArrowDown size={14} />
+            </button>
+          </div>
           <span className="te-name">{te.exercise?.name ?? 'Unknown'}</span>
-          <span className="te-sets">{te.default_sets} sets</span>
+          <div className="te-sets-control">
+            <button
+              className="btn-icon-small"
+              onClick={() => updateDefaultSets(te.id, te.default_sets - 1)}
+              disabled={te.default_sets <= 1}
+            >
+              <Minus size={12} />
+            </button>
+            <span className="te-sets-value">{te.default_sets}</span>
+            <button
+              className="btn-icon-small"
+              onClick={() => updateDefaultSets(te.id, te.default_sets + 1)}
+            >
+              <Plus size={12} />
+            </button>
+          </div>
           <button
             className="btn-icon-small danger"
             onClick={() => removeExerciseFromTemplate(te.id)}
