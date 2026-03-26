@@ -1,11 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, CheckCircle2, Circle, Plus, Minus, ChevronDown, ChevronUp } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { useTemplateExercises } from '../hooks/useTemplates';
 import { usePreviousSets } from '../hooks/useWorkoutHistory';
-import type { ActiveExercise, ActiveSet, SplitTemplate } from '../types/database';
+import type { ActiveExercise, ActiveSet, SplitTemplate, WorkoutSet } from '../types/database';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { format } from 'date-fns';
 
@@ -27,6 +27,9 @@ export default function ActiveWorkoutPage() {
   const [startedAt] = useState(new Date().toISOString());
   const [saving, setSaving] = useState(false);
   const [initialized, setInitialized] = useState(false);
+
+  // Store previous session data per exercise so add/remove sets can reference it
+  const previousDataRef = useRef<Record<string, WorkoutSet[]>>({});
 
   // Fetch template info
   useEffect(() => {
@@ -57,6 +60,9 @@ export default function ActiveWorkoutPage() {
         if (!exercise) continue;
 
         const prevSets = await getPreviousSets(exercise.id);
+        // Store for later use by addSet
+        previousDataRef.current[exercise.id] = prevSets;
+
         const sets: ActiveSet[] = [];
 
         for (let i = 1; i <= te.default_sets; i++) {
@@ -121,6 +127,9 @@ export default function ActiveWorkoutPage() {
       prev.map((ex) => {
         if (ex.exercise_id !== exerciseId) return ex;
         const newSetNum = ex.sets.length + 1;
+        // Look up previous session data for this set number
+        const prevSets = previousDataRef.current[exerciseId] ?? [];
+        const prev_data = prevSets.find((ps) => ps.set_number === newSetNum);
         return {
           ...ex,
           sets: [
@@ -132,8 +141,8 @@ export default function ActiveWorkoutPage() {
               set_number: newSetNum,
               reps: '',
               weight: '',
-              previous_reps: null,
-              previous_weight: null,
+              previous_reps: prev_data?.reps ?? null,
+              previous_weight: prev_data?.weight ?? null,
             },
           ],
         };
