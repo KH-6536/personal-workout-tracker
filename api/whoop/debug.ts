@@ -62,7 +62,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const text = await r.text();
       let body;
       try { body = JSON.parse(text); } catch { body = text; }
-      results[ep.name] = { status: r.status, body };
+
+      // Compact: just show status, record count, and first record keys
+      const recordCount = body?.records?.length ?? (Array.isArray(body) ? body.length : null);
+      const hasScore = body?.records?.[0]?.score != null;
+      const scoreKeys = hasScore ? Object.keys(body.records[0].score) : null;
+      results[ep.name] = {
+        status: r.status,
+        recordCount,
+        hasScore,
+        scoreKeys,
+        preview: JSON.stringify(body).slice(0, 200),
+      };
     } catch (err) {
       results[ep.name] = { error: (err as Error).message };
     }
