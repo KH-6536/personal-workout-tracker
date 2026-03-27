@@ -78,6 +78,38 @@ export interface ActiveExercise {
   sets: ActiveSet[];
 }
 
+export interface HealthMetric {
+  id: string;
+  user_id: string;
+  date: string; // YYYY-MM-DD
+  weight: number | null;
+  weight_unit: string | null;
+  body_fat_pct: number | null;
+  lean_mass_kg: number | null;
+  recovery_score: number | null;
+  resting_heart_rate: number | null;
+  hrv: number | null;
+  spo2: number | null;
+  skin_temp: number | null;
+  strain_score: number | null;
+  calories: number | null;
+  sleep_duration_minutes: number | null;
+  sleep_efficiency: number | null;
+  sleep_performance: number | null;
+  source: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WhoopConnection {
+  id: string;
+  user_id: string;
+  expires_at: string;
+  whoop_user_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export type DayOfWeek = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
 export const DAY_NAMES: Record<DayOfWeek, string> = {

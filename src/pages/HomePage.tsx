@@ -1,9 +1,10 @@
 import { useNavigate } from 'react-router-dom';
-import { Play, Calendar, TrendingUp } from 'lucide-react';
+import { Play, Calendar, TrendingUp, Heart, Scale } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useSchedule } from '../hooks/useSchedule';
 import { useWorkoutHistory } from '../hooks/useWorkoutHistory';
 import { useTemplates } from '../hooks/useTemplates';
+import { useHealthMetrics } from '../hooks/useHealthMetrics';
 import { AppHeader } from '../components/Layout';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { DAY_NAMES, type DayOfWeek } from '../types/database';
@@ -14,7 +15,10 @@ export default function HomePage() {
   const { schedule, loading: scheduleLoading } = useSchedule(user?.id);
   const { templates } = useTemplates(user?.id);
   const { sessions, loading: historyLoading } = useWorkoutHistory(user?.id);
+  const { getToday: getHealthToday } = useHealthMetrics(user?.id);
   const navigate = useNavigate();
+
+  const healthToday = getHealthToday();
 
   const today = new Date();
   const dayOfWeek = today.getDay() as DayOfWeek;
@@ -92,6 +96,24 @@ export default function HomePage() {
           </div>
           <div className="stat-label">This Week</div>
         </div>
+        {healthToday?.recovery_score != null && (
+          <div className={`stat-card ${healthToday.recovery_score >= 67 ? 'stat-card-green' : healthToday.recovery_score >= 34 ? 'stat-card-yellow' : 'stat-card-red'}`}>
+            <Heart size={20} />
+            <div className="stat-value">{healthToday.recovery_score}%</div>
+            <div className="stat-label">Recovery</div>
+          </div>
+        )}
+        {healthToday?.weight != null && (
+          <div className="stat-card">
+            <Scale size={20} />
+            <div className="stat-value">
+              {healthToday.weight_unit === 'kg'
+                ? (healthToday.weight * 2.20462).toFixed(1)
+                : healthToday.weight}
+            </div>
+            <div className="stat-label">Weight (lbs)</div>
+          </div>
+        )}
       </div>
 
       {/* Recent Workouts */}
