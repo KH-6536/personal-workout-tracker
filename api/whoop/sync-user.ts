@@ -21,10 +21,14 @@ export async function syncUserData(userId: string) {
 
   const accessToken = await getValidAccessToken(token);
 
-  // Date range: today (use UTC to align with Whoop API)
+  // Date range: yesterday through today to capture overnight sleep/recovery
+  // Whoop's recovery and sleep are tied to the cycle that started the previous day
   const now = new Date();
   const todayStr = now.toISOString().split('T')[0];
-  const start = `${todayStr}T00:00:00.000Z`;
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayStr = yesterday.toISOString().split('T')[0];
+  const start = `${yesterdayStr}T00:00:00.000Z`;
   const end = `${todayStr}T23:59:59.999Z`;
 
   // Fetch all data in parallel
