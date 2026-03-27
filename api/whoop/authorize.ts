@@ -11,7 +11,7 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
   // Pass the user's Supabase access token as state so we can identify them in the callback
   const state = (req.query.token as string) || '';
 
-  const scopes = 'read:recovery read:cycles read:sleep read:workout read:body_measurement read:profile';
+  const scopes = 'offline read:recovery read:cycles read:sleep read:workout read:body_measurement read:profile';
 
   const authUrl = new URL('https://api.prod.whoop.com/oauth/oauth2/auth');
   authUrl.searchParams.set('client_id', clientId);

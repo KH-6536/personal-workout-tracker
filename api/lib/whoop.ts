@@ -39,7 +39,16 @@ export async function getValidAccessToken(token: WhoopTokenRow): Promise<string>
   });
 
   if (!res.ok) {
-    throw new Error(`Token refresh failed: ${res.status} ${await res.text()}`);
+    const errText = await res.text();
+    // If refresh fails (no refresh token or revoked), mark as expired so UI prompts reconnect
+    if (!token.refresh_token || res.status === 400 || res.status === 401) {
+      await supabaseAdmin
+        .from('whoop_tokens')
+        .update({ expires_at: new Date(0).toISOString(), updated_at: new Date().toISOString() })
+        .eq('id', token.id);
+      throw new Error('Whoop session expired. Please reconnect your Whoop account.');
+    }
+    throw new Error(`Token refresh failed: ${res.status} ${errText}`);
   }
 
   const data: WhoopTokenResponse = await res.json();
