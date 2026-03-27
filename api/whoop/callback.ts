@@ -56,7 +56,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Fetch Whoop user ID
   let whoopUserId: string | null = null;
   try {
-    const profileRes = await fetch('https://api.prod.whoop.com/developer/v1/user/profile/basic', {
+    const profileRes = await fetch('https://api.prod.whoop.com/developer/v2/user/profile/basic', {
       headers: { Authorization: `Bearer ${tokens.access_token}` },
     });
     if (profileRes.ok) {

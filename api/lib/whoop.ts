@@ -137,7 +137,7 @@ export interface WhoopBodyMeasurement {
 
 export async function fetchLatestCycle(accessToken: string, start: string, end: string): Promise<WhoopCycle | null> {
   try {
-    const data = await whoopGet(accessToken, '/v1/cycle', { start, end, limit: '1' });
+    const data = await whoopGet(accessToken, '/v2/cycle', { start, end, limit: '1' });
     const records = data.records ?? data;
     return Array.isArray(records) && records.length > 0 ? records[0] : null;
   } catch (err) {
@@ -148,8 +148,7 @@ export async function fetchLatestCycle(accessToken: string, start: string, end: 
 
 export async function fetchLatestRecovery(accessToken: string, start: string, end: string): Promise<WhoopRecovery | null> {
   try {
-    // Try /v1/recovery first, fall back to /v1/cycle/:id/recovery pattern
-    const data = await whoopGet(accessToken, '/v1/recovery', { start, end, limit: '1' });
+    const data = await whoopGet(accessToken, '/v2/recovery', { start, end, limit: '1' });
     const records = data.records ?? data;
     return Array.isArray(records) && records.length > 0 ? records[0] : null;
   } catch (err) {
@@ -160,7 +159,7 @@ export async function fetchLatestRecovery(accessToken: string, start: string, en
 
 export async function fetchLatestSleep(accessToken: string, start: string, end: string): Promise<WhoopSleep | null> {
   try {
-    const data = await whoopGet(accessToken, '/v1/activity/sleep', { start, end, limit: '1' });
+    const data = await whoopGet(accessToken, '/v2/activity/sleep', { start, end, limit: '1' });
     const records = data.records ?? data;
     return Array.isArray(records) && records.length > 0 ? records[0] : null;
   } catch (err) {
@@ -171,7 +170,7 @@ export async function fetchLatestSleep(accessToken: string, start: string, end: 
 
 export async function fetchBodyMeasurement(accessToken: string): Promise<WhoopBodyMeasurement | null> {
   try {
-    return await whoopGet(accessToken, '/v1/user/measurement/body');
+    return await whoopGet(accessToken, '/v2/user/measurement/body');
   } catch (err) {
     console.error('fetchBodyMeasurement failed:', err);
     return null;
