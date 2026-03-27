@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { supabaseAdmin } from '../lib/supabase-admin.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  try {
   const { code, state, error } = req.query;
 
   if (error) {
@@ -84,9 +85,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (upsertError) {
     console.error('Failed to store tokens:', upsertError);
-    return res.redirect('/?whoop_error=storage_failed');
+    return res.redirect(`/?whoop_error=${encodeURIComponent(`storage_failed: ${upsertError.message} (code: ${upsertError.code})`)}`);
   }
 
   // Redirect back to health page
   return res.redirect('/health?whoop_connected=true');
+  } catch (err) {
+    console.error('Callback error:', err);
+    return res.redirect(`/?whoop_error=${encodeURIComponent(`unexpected: ${(err as Error).message}`)}`);
+  }
 }
