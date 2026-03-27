@@ -21,21 +21,24 @@ export async function syncUserData(userId: string) {
 
   const accessToken = await getValidAccessToken(token);
 
-  // Date range: yesterday through today to capture overnight sleep/recovery
-  // Whoop's recovery and sleep are tied to the cycle that started the previous day
   const now = new Date();
   const todayStr = now.toISOString().split('T')[0];
-  const yesterday = new Date(now);
-  yesterday.setDate(yesterday.getDate() - 1);
-  const yesterdayStr = yesterday.toISOString().split('T')[0];
-  const start = `${yesterdayStr}T00:00:00.000Z`;
-  const end = `${todayStr}T23:59:59.999Z`;
+
+  // Cycle/strain uses today's range
+  const cycleStart = `${todayStr}T00:00:00.000Z`;
+  const cycleEnd = `${todayStr}T23:59:59.999Z`;
+
+  // Recovery and sleep need a wider window (last 2 days) because they're
+  // tied to the overnight cycle that started yesterday evening
+  const twoDaysAgo = new Date(now);
+  twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+  const sleepStart = `${twoDaysAgo.toISOString().split('T')[0]}T00:00:00.000Z`;
 
   // Fetch all data in parallel
   const [cycle, recovery, sleep, body] = await Promise.all([
-    fetchLatestCycle(accessToken, start, end),
-    fetchLatestRecovery(accessToken, start, end),
-    fetchLatestSleep(accessToken, start, end),
+    fetchLatestCycle(accessToken, cycleStart, cycleEnd),
+    fetchLatestRecovery(accessToken, sleepStart, cycleEnd),
+    fetchLatestSleep(accessToken, sleepStart, cycleEnd),
     fetchBodyMeasurement(accessToken),
   ]);
 
