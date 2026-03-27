@@ -140,16 +140,6 @@ export default function HealthPage() {
     }
   }, [refetch]);
 
-  const handleDebug = useCallback(async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
-    const res = await fetch('/api/whoop/debug', {
-      headers: { Authorization: `Bearer ${session.access_token}` },
-    });
-    const data = await res.json();
-    alert(JSON.stringify(data, null, 2));
-  }, []);
-
   const handleDisconnect = useCallback(async () => {
     if (!confirm('Disconnect Whoop? Your synced data will remain.')) return;
     const { data: { session } } = await supabase.auth.getSession();
@@ -212,9 +202,6 @@ export default function HealthPage() {
               >
                 <RefreshCw size={16} className={syncing ? 'spin' : ''} />
                 {syncing ? 'Syncing...' : 'Sync Now'}
-              </button>
-              <button className="btn btn-outline btn-small" onClick={handleDebug}>
-                Debug
               </button>
               <button className="btn btn-outline btn-small btn-danger-outline" onClick={handleDisconnect}>
                 Disconnect
