@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { supabaseAdmin } from '../lib/supabase-admin';
-import { syncUserData } from './sync-user';
+import { supabaseAdmin } from '../lib/supabase-admin.js';
+import { syncUserData } from './sync-user.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Verify cron secret to prevent unauthorized calls
