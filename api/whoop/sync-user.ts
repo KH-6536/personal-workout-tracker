@@ -95,7 +95,16 @@ export async function syncUserData(userId: string) {
     throw new Error(`Failed to upsert health metrics: ${upsertError.message}`);
   }
 
-  return { date: todayStr, metrics };
+  return {
+    date: todayStr,
+    metrics,
+    debug: {
+      hasCycle: !!cycle?.score,
+      hasRecovery: !!recovery?.score,
+      hasSleep: !!sleep?.score,
+      hasBody: !!body?.weight_kilogram,
+    },
+  };
 }
 
 // Also export as a Vercel API route for manual "Sync Now"
