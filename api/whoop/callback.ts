@@ -74,7 +74,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       {
         user_id: user.id,
         access_token: tokens.access_token,
-        refresh_token: tokens.refresh_token,
+        refresh_token: tokens.refresh_token || '',
         expires_at: expiresAt,
         scopes: tokens.scope || null,
         whoop_user_id: whoopUserId,
