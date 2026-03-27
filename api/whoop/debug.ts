@@ -45,10 +45,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // Try each endpoint and capture raw responses
   const endpoints = [
-    { name: 'cycle', path: `/developer/v1/cycle?start=${start}&end=${end}&limit=1` },
-    { name: 'recovery', path: `/developer/v1/recovery?start=${start}&end=${end}&limit=1` },
-    { name: 'sleep', path: `/developer/v1/activity/sleep?start=${start}&end=${end}&limit=1` },
-    { name: 'body', path: `/developer/v1/user/measurement/body` },
+    { name: 'cycle_v1', path: `/developer/v1/cycle?start=${start}&end=${end}&limit=1` },
+    { name: 'recovery_v1', path: `/developer/v1/recovery?start=${start}&end=${end}&limit=1` },
+    { name: 'recovery_collection', path: `/developer/v1/recovery/collection?start=${start}&end=${end}&limit=1` },
+    { name: 'sleep_v1', path: `/developer/v1/activity/sleep?start=${start}&end=${end}&limit=1` },
+    { name: 'sleep_collection', path: `/developer/v1/activity/sleep/collection?start=${start}&end=${end}&limit=1` },
+    { name: 'body_v1', path: `/developer/v1/user/measurement/body` },
+    { name: 'body_v2', path: `/developer/v2/user/measurement/body` },
     { name: 'profile', path: `/developer/v1/user/profile/basic` },
   ];
 
