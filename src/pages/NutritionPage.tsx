@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Plus, Trash2, Settings, BarChart3, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Trash2, Settings, BarChart3, X, Send } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useNutritionGoals, useFoodLogs } from '../hooks/useNutrition';
 import { useFoodParser } from '../hooks/useFoodParser';
@@ -68,8 +68,6 @@ export default function NutritionPage() {
   const { logs, dailySummary, addFoodLogs, deleteFoodLog, loading } = useFoodLogs(user?.id, selectedDate);
   const { parse, parsing, result, error: parseError, clear } = useFoodParser();
 
-  // Food log input
-  const [showInput, setShowInput] = useState(false);
   const [inputText, setInputText] = useState('');
   const [mealType, setMealType] = useState<MealType>(getMealDefault);
   const [reviewItems, setReviewItems] = useState<ParsedFoodItem[]>([]);
@@ -83,7 +81,6 @@ export default function NutritionPage() {
     fat_g: goals?.fat_g ?? 80,
   });
 
-  // Sync goalForm when goals load
   useMemo(() => {
     if (goals) {
       setGoalForm({
@@ -129,7 +126,6 @@ export default function NutritionPage() {
       source: 'nlp',
       raw_input: result?.raw_input ?? inputText,
     })));
-    setShowInput(false);
     setInputText('');
     setReviewItems([]);
     clear();
@@ -153,12 +149,78 @@ export default function NutritionPage() {
     weekday: 'short', month: 'short', day: 'numeric',
   });
 
-  // Expanded micronutrient view
   const [expandedMeal, setExpandedMeal] = useState<string | null>(null);
 
   return (
     <div className="page">
       <AppHeader title="Nutrition" />
+
+      {/* Inline Food Input - always visible */}
+      <div className="nutrition-inline-input">
+        <div className="nutrition-meal-select">
+          {(['breakfast', 'lunch', 'dinner', 'snack'] as MealType[]).map((mt) => (
+            <button
+              key={mt}
+              className={`btn btn-small ${mealType === mt ? 'btn-primary' : 'btn-outline'}`}
+              onClick={() => setMealType(mt)}
+            >
+              {MEAL_LABELS[mt]}
+            </button>
+          ))}
+        </div>
+        <div className="nutrition-input-row">
+          <textarea
+            className="nutrition-input-text"
+            placeholder="3 eggs, 150g egg whites, 1 cup oatmeal..."
+            value={inputText}
+            onChange={(e) => setInputText(e.target.value)}
+            rows={2}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleParse();
+              }
+            }}
+          />
+          <button
+            className="nutrition-send-btn"
+            onClick={handleParse}
+            disabled={parsing || !inputText.trim()}
+          >
+            {parsing ? <div className="nutrition-send-spinner" /> : <Send size={20} />}
+          </button>
+        </div>
+
+        {parseError && <p className="nutrition-error">{parseError}</p>}
+
+        {/* Review parsed items inline */}
+        {reviewItems.length > 0 && (
+          <div className="nutrition-review">
+            {reviewItems.map((item, idx) => (
+              <div key={idx} className="nutrition-review-item">
+                <div className="nutrition-review-item-header">
+                  <div>
+                    <div className="nutrition-review-item-name">{item.food_name}</div>
+                    <div className="nutrition-review-item-serving">{item.serving_description}</div>
+                  </div>
+                  <button className="nutrition-food-delete" onClick={() => handleRemoveReviewItem(idx)}>
+                    <X size={16} />
+                  </button>
+                </div>
+                <div className="nutrition-review-macros">
+                  <span className="nutrition-review-cal">{Math.round(item.calories)} cal</span>
+                  <span style={{ color: 'var(--protein-color)' }}>P: {Math.round(item.protein_g)}g</span>
+                  <span style={{ color: 'var(--carbs-color)' }}>C: {Math.round(item.carbs_g)}g</span>
+                  <span style={{ color: 'var(--fat-color)' }}>F: {Math.round(item.fat_g)}g</span>
+                </div>
+              </div>
+            ))}
+            <button className="btn btn-primary nutrition-save-btn" onClick={handleSave}>
+              Save {reviewItems.length} Item{reviewItems.length > 1 ? 's' : ''}
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* Date Navigation */}
       <div className="nutrition-date-nav">
@@ -242,93 +304,9 @@ export default function NutritionPage() {
 
           {logs.length === 0 && (
             <div className="empty-state">
-              <p>No food logged yet. Tap + to add.</p>
+              <p>No food logged yet. Type above to add.</p>
             </div>
           )}
-        </div>
-      )}
-
-      {/* Floating Add Button */}
-      <button className="nutrition-fab" onClick={() => { setShowInput(true); setMealType(getMealDefault()); }}>
-        <Plus size={24} />
-      </button>
-
-      {/* Food Input Modal */}
-      {showInput && (
-        <div className="nutrition-modal-overlay" onClick={() => { setShowInput(false); clear(); setReviewItems([]); }}>
-          <div className="nutrition-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="nutrition-modal-header">
-              <h3>Log Food</h3>
-              <button className="nutrition-modal-close" onClick={() => { setShowInput(false); clear(); setReviewItems([]); }}>
-                <X size={20} />
-              </button>
-            </div>
-
-            {/* Meal type selector */}
-            <div className="nutrition-meal-select">
-              {(['breakfast', 'lunch', 'dinner', 'snack'] as MealType[]).map((mt) => (
-                <button
-                  key={mt}
-                  className={`btn btn-small ${mealType === mt ? 'btn-primary' : 'btn-outline'}`}
-                  onClick={() => setMealType(mt)}
-                >
-                  {MEAL_LABELS[mt]}
-                </button>
-              ))}
-            </div>
-
-            {/* Natural language input */}
-            <textarea
-              className="nutrition-input-text"
-              placeholder="e.g., 3 eggs, 150g egg whites, 1 cup oatmeal with honey"
-              value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              rows={3}
-              autoFocus
-            />
-
-            <button
-              className="btn btn-primary btn-large nutrition-parse-btn"
-              onClick={handleParse}
-              disabled={parsing || !inputText.trim()}
-            >
-              {parsing ? 'Analyzing...' : 'Analyze Food'}
-            </button>
-
-            {parseError && <p className="nutrition-error">{parseError}</p>}
-
-            {/* Review parsed items */}
-            {reviewItems.length > 0 && (
-              <div className="nutrition-review">
-                <h4 className="nutrition-review-title">Review Items</h4>
-                {reviewItems.map((item, idx) => (
-                  <div key={idx} className="nutrition-review-item">
-                    <div className="nutrition-review-item-header">
-                      <div>
-                        <div className="nutrition-review-item-name">{item.food_name}</div>
-                        <div className="nutrition-review-item-serving">{item.serving_description}</div>
-                      </div>
-                      <button
-                        className="nutrition-food-delete"
-                        onClick={() => handleRemoveReviewItem(idx)}
-                      >
-                        <X size={16} />
-                      </button>
-                    </div>
-                    <div className="nutrition-review-macros">
-                      <span className="nutrition-review-cal">{Math.round(item.calories)} cal</span>
-                      <span style={{ color: 'var(--protein-color)' }}>P: {Math.round(item.protein_g)}g</span>
-                      <span style={{ color: 'var(--carbs-color)' }}>C: {Math.round(item.carbs_g)}g</span>
-                      <span style={{ color: 'var(--fat-color)' }}>F: {Math.round(item.fat_g)}g</span>
-                    </div>
-                  </div>
-                ))}
-                <button className="btn btn-primary btn-large nutrition-save-btn" onClick={handleSave}>
-                  Save {reviewItems.length} Item{reviewItems.length > 1 ? 's' : ''}
-                </button>
-              </div>
-            )}
-          </div>
         </div>
       )}
 
