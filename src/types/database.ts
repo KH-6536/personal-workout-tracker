@@ -121,3 +121,81 @@ export const DAY_NAMES: Record<DayOfWeek, string> = {
   5: 'Friday',
   6: 'Saturday',
 };
+
+// ============================================
+// Nutrition Tracking
+// ============================================
+
+export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
+
+export const MEAL_LABELS: Record<MealType, string> = {
+  breakfast: 'Breakfast',
+  lunch: 'Lunch',
+  dinner: 'Dinner',
+  snack: 'Snack',
+};
+
+export interface Micronutrients {
+  vitamin_a_mcg?: number;
+  vitamin_c_mg?: number;
+  vitamin_d_mcg?: number;
+  calcium_mg?: number;
+  iron_mg?: number;
+  potassium_mg?: number;
+  magnesium_mg?: number;
+  zinc_mg?: number;
+  [key: string]: number | undefined;
+}
+
+export interface NutritionGoals {
+  id: string;
+  user_id: string;
+  calorie_target: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FoodLog {
+  id: string;
+  user_id: string;
+  date: string;
+  meal_type: MealType;
+  food_name: string;
+  serving_description: string | null;
+  calories: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+  fiber_g: number | null;
+  sugar_g: number | null;
+  sodium_mg: number | null;
+  micronutrients: Micronutrients;
+  source: string;
+  raw_input: string | null;
+  created_at: string;
+}
+
+export interface ParsedFoodItem {
+  food_name: string;
+  serving_description: string;
+  calories: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+  fiber_g: number | null;
+  sugar_g: number | null;
+  sodium_mg: number | null;
+  micronutrients: Micronutrients;
+}
+
+export interface DailyNutritionSummary {
+  date: string;
+  total_calories: number;
+  total_protein: number;
+  total_carbs: number;
+  total_fat: number;
+  meals: Record<MealType, FoodLog[]>;
+}

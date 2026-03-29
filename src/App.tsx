@@ -7,6 +7,8 @@ import ActiveWorkoutPage from './pages/ActiveWorkoutPage';
 import HistoryPage from './pages/HistoryPage';
 import TemplatesPage from './pages/TemplatesPage';
 import HealthPage from './pages/HealthPage';
+import NutritionPage from './pages/NutritionPage';
+import NutritionAnalyticsPage from './pages/NutritionAnalyticsPage';
 import LoadingSpinner from './components/LoadingSpinner';
 
 function ProtectedRoutes() {
@@ -22,6 +24,8 @@ function ProtectedRoutes() {
         <Route path="history" element={<HistoryPage />} />
         <Route path="templates" element={<TemplatesPage />} />
         <Route path="health" element={<HealthPage />} />
+        <Route path="nutrition" element={<NutritionPage />} />
+        <Route path="nutrition/analytics" element={<NutritionAnalyticsPage />} />
       </Route>
       <Route path="workout/:templateId" element={<ActiveWorkoutPage />} />
     </Routes>
