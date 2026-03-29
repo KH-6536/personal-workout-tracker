@@ -1816,14 +1816,30 @@ textarea {
   color: var(--text-secondary);
 }
 
-/* FAB */
-.nutrition-fab {
-  position: fixed;
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 80px);
-  right: 1rem;
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
+/* Inline Food Input */
+.nutrition-inline-input {
+  background: var(--bg-secondary);
+  border-radius: var(--radius);
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.nutrition-input-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-end;
+}
+
+.nutrition-input-row .nutrition-input-text {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+.nutrition-send-btn {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-sm);
   background: var(--accent);
   color: white;
   border: none;
@@ -1831,12 +1847,24 @@ textarea {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
-  z-index: 50;
 }
 
-.nutrition-fab:active {
+.nutrition-send-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.nutrition-send-btn:active:not(:disabled) {
   transform: scale(0.95);
+}
+
+.nutrition-send-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
 }
 
 /* Modal */
