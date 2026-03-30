@@ -191,6 +191,24 @@ export interface ParsedFoodItem {
   micronutrients: Micronutrients;
 }
 
+export interface CustomFood {
+  id: string;
+  user_id: string;
+  food_name: string;
+  serving_description: string | null;
+  calories: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+  fiber_g: number | null;
+  sugar_g: number | null;
+  sodium_mg: number | null;
+  micronutrients: Micronutrients;
+  use_count: number;
+  last_used_at: string;
+  created_at: string;
+}
+
 export interface DailyNutritionSummary {
   date: string;
   total_calories: number;
