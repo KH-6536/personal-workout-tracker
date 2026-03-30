@@ -1867,6 +1867,86 @@ textarea {
   animation: spin 0.6s linear infinite;
 }
 
+/* Quick Access Foods */
+.nutrition-quick-access {
+  margin-bottom: 0.75rem;
+}
+
+.nutrition-quick-label {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.nutrition-quick-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.nutrition-quick-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.375rem 0.625rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.nutrition-quick-chip:active {
+  transform: scale(0.96);
+}
+
+.nutrition-quick-chip--saved {
+  border-color: var(--accent);
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.nutrition-quick-chip--saved svg {
+  color: var(--accent);
+}
+
+.nutrition-quick-chip-name {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nutrition-quick-chip-cal {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+/* Save as custom food button */
+.nutrition-food-save {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0.25rem;
+  flex-shrink: 0;
+  opacity: 0.6;
+  transition: opacity 0.15s, color 0.15s;
+}
+
+.nutrition-food-save:active {
+  color: var(--accent);
+  opacity: 1;
+}
+
 /* Modal */
 .nutrition-modal-overlay {
   position: fixed;
