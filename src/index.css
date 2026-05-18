@@ -240,6 +240,11 @@ textarea {
   background: var(--danger-dim);
 }
 
+.btn-icon-small.swap-active {
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+
 .link-button {
   background: none;
   border: none;
@@ -1104,6 +1109,17 @@ textarea {
   font-size: 0.8rem;
   color: var(--text-muted);
   font-weight: 500;
+}
+
+/* Workout-page exercise picker */
+.workout-picker {
+  margin-top: 0;
+  border: none;
+  background: var(--bg-primary);
+}
+
+.workout-add-exercise-btn {
+  margin-top: 0.25rem;
 }
 
 /* ============================================
