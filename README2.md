@@ -7,6 +7,7 @@ A mobile-first workout tracking app built with React, TypeScript, and Supabase.
 - **Workout Splits**: Push / Pull / Legs / Upper / Lower templates with customizable exercises
 - **Weekly Schedule**: Assign splits to days of the week — today's workout shows on the home screen
 - **Active Workout Logging**: Log sets with weight/reps, see previous session data for progressive overload
+- **Live Exercise Swapping**: Swap, add, or remove exercises mid-workout without leaving the active session
 - **Workout History**: Calendar view to browse any past workout with full detail
 - **Real-time Sync**: All data syncs across devices via Supabase
 
