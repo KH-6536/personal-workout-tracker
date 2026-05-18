@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, CheckCircle2, Circle, Plus, Minus, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Circle, Plus, Minus, ChevronDown, ChevronUp, RefreshCw, Trash2, Search, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { useTemplateExercises } from '../hooks/useTemplates';
+import { useExercises } from '../hooks/useExercises';
 import { usePreviousSets } from '../hooks/useWorkoutHistory';
 import type { ActiveExercise, ActiveSet, SplitTemplate, WorkoutSet } from '../types/database';
+import { PRESET_EXERCISES, MUSCLE_GROUPS } from '../lib/exercises';
 import LoadingSpinner from '../components/LoadingSpinner';
 import RestTimer from '../components/RestTimer';
 import { format } from 'date-fns';
@@ -14,12 +16,101 @@ function generateId() {
   return Math.random().toString(36).substring(2, 11);
 }
 
+function ExercisePicker({
+  onPick,
+  onClose,
+  excludeNames,
+  exercises: userExercises,
+  addExercise,
+}: {
+  onPick: (exerciseId: string, exerciseName: string) => void;
+  onClose: () => void;
+  excludeNames: Set<string>;
+  exercises: { id: string; name: string; muscle_group: string | null }[];
+  addExercise: (name: string, muscleGroup?: string) => Promise<{ id: string; name: string } | null>;
+}) {
+  const [muscleFilter, setMuscleFilter] = useState('All');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [adding, setAdding] = useState<string | null>(null);
+
+  const presetNames = new Set(PRESET_EXERCISES.map((p) => p.name.toLowerCase()));
+  const customExercises = userExercises
+    .filter((e) => !presetNames.has(e.name.toLowerCase()))
+    .map((e) => ({ name: e.name, muscleGroup: e.muscle_group || 'Other' }));
+  const allExercises = [...PRESET_EXERCISES, ...customExercises];
+
+  const filtered = allExercises.filter((p) => {
+    if (excludeNames.has(p.name.toLowerCase())) return false;
+    if (muscleFilter !== 'All' && p.muscleGroup !== muscleFilter) return false;
+    if (searchQuery && !p.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+    return true;
+  });
+
+  const handlePick = async (name: string, muscleGroup: string) => {
+    setAdding(name);
+    try {
+      const existing = userExercises.find((e) => e.name.toLowerCase() === name.toLowerCase());
+      let exerciseId: string;
+      if (existing) {
+        exerciseId = existing.id;
+      } else {
+        const created = await addExercise(name, muscleGroup);
+        if (!created) return;
+        exerciseId = created.id;
+      }
+      onPick(exerciseId, name);
+    } finally {
+      setAdding(null);
+    }
+  };
+
+  return (
+    <div className="exercise-picker workout-picker">
+      <div className="picker-search">
+        <Search size={16} className="picker-search-icon" />
+        <input
+          type="text"
+          placeholder="Search exercises..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="picker-search-input"
+          autoFocus
+        />
+        <button className="btn-icon-small" onClick={onClose}>
+          <X size={16} />
+        </button>
+      </div>
+      <div className="picker-filters">
+        <button className={`filter-chip ${muscleFilter === 'All' ? 'active' : ''}`} onClick={() => setMuscleFilter('All')}>All</button>
+        {MUSCLE_GROUPS.map((mg) => (
+          <button key={mg} className={`filter-chip ${muscleFilter === mg ? 'active' : ''}`} onClick={() => setMuscleFilter(mg)}>{mg}</button>
+        ))}
+      </div>
+      <div className="picker-list">
+        {filtered.map((p) => (
+          <button
+            key={p.name}
+            className="picker-item"
+            onClick={() => handlePick(p.name, p.muscleGroup)}
+            disabled={adding !== null}
+          >
+            <span className="picker-item-name">{adding === p.name ? 'Adding...' : p.name}</span>
+            <span className="picker-item-group">{p.muscleGroup}</span>
+          </button>
+        ))}
+        {filtered.length === 0 && <p className="empty-text" style={{ padding: '0.75rem 0', textAlign: 'center' }}>No matching exercises.</p>}
+      </div>
+    </div>
+  );
+}
+
 export default function ActiveWorkoutPage() {
   const { templateId } = useParams<{ templateId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
   const { templateExercises, loading: teLoading } = useTemplateExercises(templateId);
   const { getPreviousSets } = usePreviousSets(user?.id);
+  const { exercises: userExercises, addExercise } = useExercises(user?.id);
 
   const [template, setTemplate] = useState<SplitTemplate | null>(null);
   const [exercises, setExercises] = useState<ActiveExercise[]>([]);
@@ -29,11 +120,11 @@ export default function ActiveWorkoutPage() {
   const [saving, setSaving] = useState(false);
   const [initialized, setInitialized] = useState(false);
   const [showTimer, setShowTimer] = useState(false);
+  const [swappingExercise, setSwappingExercise] = useState<string | null>(null);
+  const [showAddExercise, setShowAddExercise] = useState(false);
 
-  // Store previous session data per exercise so add/remove sets can reference it
   const previousDataRef = useRef<Record<string, WorkoutSet[]>>({});
 
-  // Fetch template info
   useEffect(() => {
     if (!templateId) return;
     supabase
@@ -46,7 +137,6 @@ export default function ActiveWorkoutPage() {
       });
   }, [templateId]);
 
-  // Build active exercises from template + previous data
   useEffect(() => {
     if (teLoading || initialized) return;
     if (templateExercises.length === 0) {
@@ -62,7 +152,6 @@ export default function ActiveWorkoutPage() {
         if (!exercise) continue;
 
         const prevSets = await getPreviousSets(exercise.id);
-        // Store for later use by addSet
         previousDataRef.current[exercise.id] = prevSets;
 
         const sets: ActiveSet[] = [];
@@ -122,7 +211,6 @@ export default function ActiveWorkoutPage() {
         next.delete(setId);
       } else {
         next.add(setId);
-        // Start rest timer when completing a set
         setShowTimer(true);
       }
       return next;
@@ -134,7 +222,6 @@ export default function ActiveWorkoutPage() {
       prev.map((ex) => {
         if (ex.exercise_id !== exerciseId) return ex;
         const newSetNum = ex.sets.length + 1;
-        // Look up previous session data for this set number
         const prevSets = previousDataRef.current[exerciseId] ?? [];
         const prev_data = prevSets.find((ps) => ps.set_number === newSetNum);
         return {
@@ -181,12 +268,98 @@ export default function ActiveWorkoutPage() {
     });
   }, []);
 
+  // Swap an exercise mid-workout
+  const handleSwapExercise = useCallback(async (oldExerciseId: string, newExerciseId: string, newExerciseName: string) => {
+    const prevSets = await getPreviousSets(newExerciseId);
+    previousDataRef.current[newExerciseId] = prevSets;
+
+    setExercises((prev) =>
+      prev.map((ex) => {
+        if (ex.exercise_id !== oldExerciseId) return ex;
+        // Clear completed status for old sets
+        const oldSetIds = ex.sets.map((s) => s.id);
+        setCompletedSets((cs) => {
+          const next = new Set(cs);
+          oldSetIds.forEach((id) => next.delete(id));
+          return next;
+        });
+        // Build new sets with same count
+        const newSets: ActiveSet[] = ex.sets.map((_, i) => {
+          const prev = prevSets.find((ps) => ps.set_number === i + 1);
+          return {
+            id: generateId(),
+            exercise_id: newExerciseId,
+            exercise_name: newExerciseName,
+            set_number: i + 1,
+            reps: '',
+            weight: '',
+            previous_reps: prev?.reps ?? null,
+            previous_weight: prev?.weight ?? null,
+          };
+        });
+        return {
+          exercise_id: newExerciseId,
+          exercise_name: newExerciseName,
+          sets: newSets,
+        };
+      })
+    );
+    setSwappingExercise(null);
+  }, [getPreviousSets]);
+
+  // Remove an exercise from the workout entirely
+  const handleRemoveExercise = useCallback((exerciseId: string) => {
+    setExercises((prev) => {
+      const ex = prev.find((e) => e.exercise_id === exerciseId);
+      if (ex) {
+        setCompletedSets((cs) => {
+          const next = new Set(cs);
+          ex.sets.forEach((s) => next.delete(s.id));
+          return next;
+        });
+      }
+      return prev.filter((e) => e.exercise_id !== exerciseId);
+    });
+  }, []);
+
+  // Add a brand new exercise to the workout
+  const handleAddExercise = useCallback(async (exerciseId: string, exerciseName: string) => {
+    const prevSets = await getPreviousSets(exerciseId);
+    previousDataRef.current[exerciseId] = prevSets;
+
+    const defaultSetCount = 3;
+    const newSets: ActiveSet[] = Array.from({ length: defaultSetCount }, (_, i) => {
+      const prev = prevSets.find((ps) => ps.set_number === i + 1);
+      return {
+        id: generateId(),
+        exercise_id: exerciseId,
+        exercise_name: exerciseName,
+        set_number: i + 1,
+        reps: '',
+        weight: '',
+        previous_reps: prev?.reps ?? null,
+        previous_weight: prev?.weight ?? null,
+      };
+    });
+
+    setExercises((prev) => [
+      ...prev,
+      {
+        exercise_id: exerciseId,
+        exercise_name: exerciseName,
+        sets: newSets,
+      },
+    ]);
+    setShowAddExercise(false);
+  }, [getPreviousSets]);
+
+  const currentExerciseNames = new Set(exercises.map((ex) => ex.exercise_name.toLowerCase()));
+
   const finishWorkout = async () => {
     if (!user) return;
     setSaving(true);
 
     try {
-      // Create session
       const { data: session, error: sessionError } = await supabase
         .from('workout_sessions')
         .insert({
@@ -201,10 +374,9 @@ export default function ActiveWorkoutPage() {
 
       if (sessionError) throw sessionError;
 
-      // Build all sets
       const allSets = exercises.flatMap((ex) =>
         ex.sets
-          .filter((s) => s.reps || s.weight) // only save sets with data
+          .filter((s) => s.reps || s.weight)
           .map((s) => ({
             session_id: session.id,
             exercise_id: s.exercise_id,
@@ -279,18 +451,50 @@ export default function ActiveWorkoutPage() {
       <div className="exercises-list">
         {exercises.map((ex) => {
           const isCollapsed = collapsedExercises.has(ex.exercise_id);
+          const isSwapping = swappingExercise === ex.exercise_id;
           return (
             <div key={ex.exercise_id} className="exercise-card">
               <div className="exercise-card-header" onClick={() => toggleCollapse(ex.exercise_id)}>
                 <div className="exercise-name-section">
                   <h3 className="exercise-name">{ex.exercise_name}</h3>
                 </div>
-                <div className="exercise-header-actions">
-                  {isCollapsed ? <ChevronDown size={20} /> : <ChevronUp size={20} />}
+                <div className="exercise-header-actions" onClick={(e) => e.stopPropagation()}>
+                  <button
+                    className={`btn-icon-small ${isSwapping ? 'swap-active' : ''}`}
+                    title="Swap exercise"
+                    onClick={() => setSwappingExercise(isSwapping ? null : ex.exercise_id)}
+                  >
+                    <RefreshCw size={16} />
+                  </button>
+                  {exercises.length > 1 && (
+                    <button
+                      className="btn-icon-small danger"
+                      title="Remove exercise"
+                      onClick={() => handleRemoveExercise(ex.exercise_id)}
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  )}
+                  <button className="btn-icon-small" onClick={() => toggleCollapse(ex.exercise_id)}>
+                    {isCollapsed ? <ChevronDown size={20} /> : <ChevronUp size={20} />}
+                  </button>
                 </div>
               </div>
 
-              {!isCollapsed && (
+              {/* Swap picker */}
+              {isSwapping && (
+                <div style={{ padding: '0 0.75rem 0.75rem' }}>
+                  <ExercisePicker
+                    onPick={(id, name) => handleSwapExercise(ex.exercise_id, id, name)}
+                    onClose={() => setSwappingExercise(null)}
+                    excludeNames={currentExerciseNames}
+                    exercises={userExercises}
+                    addExercise={addExercise}
+                  />
+                </div>
+              )}
+
+              {!isCollapsed && !isSwapping && (
                 <>
                   {/* Column headers */}
                   <div className="set-row set-header-row">
@@ -364,6 +568,26 @@ export default function ActiveWorkoutPage() {
             </div>
           );
         })}
+
+        {/* Add Exercise button */}
+        {!showAddExercise ? (
+          <button
+            className="btn btn-outline btn-full workout-add-exercise-btn"
+            onClick={() => setShowAddExercise(true)}
+          >
+            <Plus size={16} /> Add Exercise
+          </button>
+        ) : (
+          <div className="exercise-card" style={{ padding: '0.75rem' }}>
+            <ExercisePicker
+              onPick={handleAddExercise}
+              onClose={() => setShowAddExercise(false)}
+              excludeNames={currentExerciseNames}
+              exercises={userExercises}
+              addExercise={addExercise}
+            />
+          </div>
+        )}
       </div>
 
       {/* Rest Timer */}

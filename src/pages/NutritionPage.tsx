@@ -1,11 +1,12 @@
 import { useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Plus, Trash2, Settings, BarChart3, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Trash2, Settings, BarChart3, X, Send, Star, Zap } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useNutritionGoals, useFoodLogs } from '../hooks/useNutrition';
+import { useCustomFoods, useRecentFoods } from '../hooks/useCustomFoods';
 import { useFoodParser } from '../hooks/useFoodParser';
 import { AppHeader } from '../components/Layout';
-import type { MealType, ParsedFoodItem } from '../types/database';
+import type { MealType, ParsedFoodItem, CustomFood } from '../types/database';
 import { MEAL_LABELS } from '../types/database';
 
 function CalorieRing({ consumed, target }: { consumed: number; target: number }) {
@@ -67,9 +68,9 @@ export default function NutritionPage() {
   const { goals, updateGoals } = useNutritionGoals(user?.id);
   const { logs, dailySummary, addFoodLogs, deleteFoodLog, loading } = useFoodLogs(user?.id, selectedDate);
   const { parse, parsing, result, error: parseError, clear } = useFoodParser();
+  const { foods: customFoods, addCustomFood, bumpUsage } = useCustomFoods(user?.id);
+  const { recentFoods, refetch: refetchRecent } = useRecentFoods(user?.id);
 
-  // Food log input
-  const [showInput, setShowInput] = useState(false);
   const [inputText, setInputText] = useState('');
   const [mealType, setMealType] = useState<MealType>(getMealDefault);
   const [reviewItems, setReviewItems] = useState<ParsedFoodItem[]>([]);
@@ -83,7 +84,6 @@ export default function NutritionPage() {
     fat_g: goals?.fat_g ?? 80,
   });
 
-  // Sync goalForm when goals load
   useMemo(() => {
     if (goals) {
       setGoalForm({
@@ -129,11 +129,11 @@ export default function NutritionPage() {
       source: 'nlp',
       raw_input: result?.raw_input ?? inputText,
     })));
-    setShowInput(false);
     setInputText('');
     setReviewItems([]);
     clear();
-  }, [reviewItems, addFoodLogs, selectedDate, mealType, result, inputText, clear]);
+    refetchRecent();
+  }, [reviewItems, addFoodLogs, selectedDate, mealType, result, inputText, clear, refetchRecent]);
 
   const handleRemoveReviewItem = useCallback((idx: number) => {
     setReviewItems((prev) => prev.filter((_, i) => i !== idx));
@@ -144,6 +144,66 @@ export default function NutritionPage() {
     setShowGoals(false);
   }, [goalForm, updateGoals]);
 
+  // Quick-log a custom or recent food in one tap
+  const handleQuickLog = useCallback(async (food: Pick<CustomFood, 'food_name' | 'serving_description' | 'calories' | 'protein_g' | 'carbs_g' | 'fat_g' | 'fiber_g' | 'sugar_g' | 'sodium_mg' | 'micronutrients'> & { id?: string }) => {
+    await addFoodLogs([{
+      date: selectedDate,
+      meal_type: mealType,
+      food_name: food.food_name,
+      serving_description: food.serving_description,
+      calories: food.calories,
+      protein_g: food.protein_g,
+      carbs_g: food.carbs_g,
+      fat_g: food.fat_g,
+      fiber_g: food.fiber_g,
+      sugar_g: food.sugar_g,
+      sodium_mg: food.sodium_mg,
+      micronutrients: food.micronutrients ?? {},
+      source: 'quick',
+      raw_input: null,
+    }]);
+    if (food.id) bumpUsage(food.id);
+    refetchRecent();
+  }, [addFoodLogs, selectedDate, mealType, bumpUsage, refetchRecent]);
+
+  // Save a food log entry as a custom food
+  const handleSaveAsCustom = useCallback(async (log: { food_name: string; serving_description: string | null; calories: number; protein_g: number; carbs_g: number; fat_g: number; fiber_g: number | null; sugar_g: number | null; sodium_mg: number | null; micronutrients: Record<string, number | undefined> }) => {
+    await addCustomFood({
+      food_name: log.food_name,
+      serving_description: log.serving_description,
+      calories: log.calories,
+      protein_g: log.protein_g,
+      carbs_g: log.carbs_g,
+      fat_g: log.fat_g,
+      fiber_g: log.fiber_g,
+      sugar_g: log.sugar_g,
+      sodium_mg: log.sodium_mg,
+      micronutrients: log.micronutrients ?? {},
+    });
+  }, [addCustomFood]);
+
+  // Merge custom + recent for quick access, custom foods first
+  const quickAccessFoods = useMemo(() => {
+    const items: { key: string; name: string; serving: string | null; calories: number; protein_g: number; carbs_g: number; fat_g: number; fiber_g: number | null; sugar_g: number | null; sodium_mg: number | null; micronutrients: Record<string, number | undefined>; isCustom: boolean; id?: string }[] = [];
+    const seen = new Set<string>();
+
+    for (const cf of customFoods) {
+      const key = cf.food_name.toLowerCase().trim();
+      if (!seen.has(key)) {
+        seen.add(key);
+        items.push({ key, name: cf.food_name, serving: cf.serving_description, calories: cf.calories, protein_g: cf.protein_g, carbs_g: cf.carbs_g, fat_g: cf.fat_g, fiber_g: cf.fiber_g, sugar_g: cf.sugar_g, sodium_mg: cf.sodium_mg, micronutrients: cf.micronutrients, isCustom: true, id: cf.id });
+      }
+    }
+    for (const rf of recentFoods) {
+      const key = rf.food_name.toLowerCase().trim();
+      if (!seen.has(key)) {
+        seen.add(key);
+        items.push({ key, name: rf.food_name, serving: rf.serving_description, calories: rf.calories, protein_g: rf.protein_g, carbs_g: rf.carbs_g, fat_g: rf.fat_g, fiber_g: rf.fiber_g, sugar_g: rf.sugar_g, sodium_mg: rf.sodium_mg, micronutrients: rf.micronutrients ?? {}, isCustom: false });
+      }
+    }
+    return items.slice(0, 12);
+  }, [customFoods, recentFoods]);
+
   const calorieTarget = goals?.calorie_target ?? 2500;
   const proteinTarget = goals?.protein_g ?? 180;
   const carbsTarget = goals?.carbs_g ?? 250;
@@ -153,12 +213,110 @@ export default function NutritionPage() {
     weekday: 'short', month: 'short', day: 'numeric',
   });
 
-  // Expanded micronutrient view
   const [expandedMeal, setExpandedMeal] = useState<string | null>(null);
 
   return (
     <div className="page">
       <AppHeader title="Nutrition" />
+
+      {/* Inline Food Input - always visible */}
+      <div className="nutrition-inline-input">
+        <div className="nutrition-meal-select">
+          {(['breakfast', 'lunch', 'dinner', 'snack'] as MealType[]).map((mt) => (
+            <button
+              key={mt}
+              className={`btn btn-small ${mealType === mt ? 'btn-primary' : 'btn-outline'}`}
+              onClick={() => setMealType(mt)}
+            >
+              {MEAL_LABELS[mt]}
+            </button>
+          ))}
+        </div>
+        <div className="nutrition-input-row">
+          <textarea
+            className="nutrition-input-text"
+            placeholder="3 eggs, 150g egg whites, 1 cup oatmeal..."
+            value={inputText}
+            onChange={(e) => setInputText(e.target.value)}
+            rows={2}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleParse();
+              }
+            }}
+          />
+          <button
+            className="nutrition-send-btn"
+            onClick={handleParse}
+            disabled={parsing || !inputText.trim()}
+          >
+            {parsing ? <div className="nutrition-send-spinner" /> : <Send size={20} />}
+          </button>
+        </div>
+
+        {parseError && <p className="nutrition-error">{parseError}</p>}
+
+        {/* Review parsed items inline */}
+        {reviewItems.length > 0 && (
+          <div className="nutrition-review">
+            {reviewItems.map((item, idx) => (
+              <div key={idx} className="nutrition-review-item">
+                <div className="nutrition-review-item-header">
+                  <div>
+                    <div className="nutrition-review-item-name">{item.food_name}</div>
+                    <div className="nutrition-review-item-serving">{item.serving_description}</div>
+                  </div>
+                  <button className="nutrition-food-delete" onClick={() => handleRemoveReviewItem(idx)}>
+                    <X size={16} />
+                  </button>
+                </div>
+                <div className="nutrition-review-macros">
+                  <span className="nutrition-review-cal">{Math.round(item.calories)} cal</span>
+                  <span style={{ color: 'var(--protein-color)' }}>P: {Math.round(item.protein_g)}g</span>
+                  <span style={{ color: 'var(--carbs-color)' }}>C: {Math.round(item.carbs_g)}g</span>
+                  <span style={{ color: 'var(--fat-color)' }}>F: {Math.round(item.fat_g)}g</span>
+                </div>
+              </div>
+            ))}
+            <button className="btn btn-primary nutrition-save-btn" onClick={handleSave}>
+              Save {reviewItems.length} Item{reviewItems.length > 1 ? 's' : ''}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Quick Access Foods */}
+      {quickAccessFoods.length > 0 && (
+        <div className="nutrition-quick-access">
+          <div className="nutrition-quick-label"><Zap size={14} /> Quick Add</div>
+          <div className="nutrition-quick-chips">
+            {quickAccessFoods.map((food) => (
+              <button
+                key={food.key}
+                className={`nutrition-quick-chip ${food.isCustom ? 'nutrition-quick-chip--saved' : ''}`}
+                onClick={() => handleQuickLog({
+                  food_name: food.name,
+                  serving_description: food.serving,
+                  calories: food.calories,
+                  protein_g: food.protein_g,
+                  carbs_g: food.carbs_g,
+                  fat_g: food.fat_g,
+                  fiber_g: food.fiber_g,
+                  sugar_g: food.sugar_g,
+                  sodium_mg: food.sodium_mg,
+                  micronutrients: food.micronutrients,
+                  id: food.id,
+                })}
+              >
+                {food.isCustom && <Star size={12} />}
+                <span className="nutrition-quick-chip-name">{food.name}</span>
+                <span className="nutrition-quick-chip-cal">{Math.round(food.calories)}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Date Navigation */}
       <div className="nutrition-date-nav">
@@ -219,6 +377,13 @@ export default function NutritionPage() {
                       </div>
                       <div className="nutrition-food-cals">{Math.round(log.calories)} cal</div>
                       <button
+                        className="nutrition-food-save"
+                        title="Save as custom food"
+                        onClick={(e) => { e.stopPropagation(); handleSaveAsCustom(log); }}
+                      >
+                        <Star size={14} />
+                      </button>
+                      <button
                         className="nutrition-food-delete"
                         onClick={(e) => { e.stopPropagation(); deleteFoodLog(log.id); }}
                       >
@@ -242,93 +407,9 @@ export default function NutritionPage() {
 
           {logs.length === 0 && (
             <div className="empty-state">
-              <p>No food logged yet. Tap + to add.</p>
+              <p>No food logged yet. Type above to add.</p>
             </div>
           )}
-        </div>
-      )}
-
-      {/* Floating Add Button */}
-      <button className="nutrition-fab" onClick={() => { setShowInput(true); setMealType(getMealDefault()); }}>
-        <Plus size={24} />
-      </button>
-
-      {/* Food Input Modal */}
-      {showInput && (
-        <div className="nutrition-modal-overlay" onClick={() => { setShowInput(false); clear(); setReviewItems([]); }}>
-          <div className="nutrition-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="nutrition-modal-header">
-              <h3>Log Food</h3>
-              <button className="nutrition-modal-close" onClick={() => { setShowInput(false); clear(); setReviewItems([]); }}>
-                <X size={20} />
-              </button>
-            </div>
-
-            {/* Meal type selector */}
-            <div className="nutrition-meal-select">
-              {(['breakfast', 'lunch', 'dinner', 'snack'] as MealType[]).map((mt) => (
-                <button
-                  key={mt}
-                  className={`btn btn-small ${mealType === mt ? 'btn-primary' : 'btn-outline'}`}
-                  onClick={() => setMealType(mt)}
-                >
-                  {MEAL_LABELS[mt]}
-                </button>
-              ))}
-            </div>
-
-            {/* Natural language input */}
-            <textarea
-              className="nutrition-input-text"
-              placeholder="e.g., 3 eggs, 150g egg whites, 1 cup oatmeal with honey"
-              value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              rows={3}
-              autoFocus
-            />
-
-            <button
-              className="btn btn-primary btn-large nutrition-parse-btn"
-              onClick={handleParse}
-              disabled={parsing || !inputText.trim()}
-            >
-              {parsing ? 'Analyzing...' : 'Analyze Food'}
-            </button>
-
-            {parseError && <p className="nutrition-error">{parseError}</p>}
-
-            {/* Review parsed items */}
-            {reviewItems.length > 0 && (
-              <div className="nutrition-review">
-                <h4 className="nutrition-review-title">Review Items</h4>
-                {reviewItems.map((item, idx) => (
-                  <div key={idx} className="nutrition-review-item">
-                    <div className="nutrition-review-item-header">
-                      <div>
-                        <div className="nutrition-review-item-name">{item.food_name}</div>
-                        <div className="nutrition-review-item-serving">{item.serving_description}</div>
-                      </div>
-                      <button
-                        className="nutrition-food-delete"
-                        onClick={() => handleRemoveReviewItem(idx)}
-                      >
-                        <X size={16} />
-                      </button>
-                    </div>
-                    <div className="nutrition-review-macros">
-                      <span className="nutrition-review-cal">{Math.round(item.calories)} cal</span>
-                      <span style={{ color: 'var(--protein-color)' }}>P: {Math.round(item.protein_g)}g</span>
-                      <span style={{ color: 'var(--carbs-color)' }}>C: {Math.round(item.carbs_g)}g</span>
-                      <span style={{ color: 'var(--fat-color)' }}>F: {Math.round(item.fat_g)}g</span>
-                    </div>
-                  </div>
-                ))}
-                <button className="btn btn-primary btn-large nutrition-save-btn" onClick={handleSave}>
-                  Save {reviewItems.length} Item{reviewItems.length > 1 ? 's' : ''}
-                </button>
-              </div>
-            )}
-          </div>
         </div>
       )}
 

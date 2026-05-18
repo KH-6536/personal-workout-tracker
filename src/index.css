@@ -240,6 +240,11 @@ textarea {
   background: var(--danger-dim);
 }
 
+.btn-icon-small.swap-active {
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+
 .link-button {
   background: none;
   border: none;
@@ -391,9 +396,325 @@ textarea {
 }
 
 /* ============================================
-   Home Page
+   Home Page — Dashboard
    ============================================ */
 
+/* Health vitals horizontal strip */
+.dash-vitals {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.dash-vitals::-webkit-scrollbar { display: none; }
+
+.dash-vital {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.375rem 0.625rem;
+  background: var(--bg-secondary);
+  border-radius: 999px;
+  white-space: nowrap;
+  font-size: 0.8rem;
+  flex-shrink: 0;
+}
+
+.dash-vital svg { color: var(--text-muted); flex-shrink: 0; }
+.dash-vital--green { background: rgba(34, 197, 94, 0.12); }
+.dash-vital--green svg { color: var(--success); }
+.dash-vital--yellow { background: rgba(234, 179, 8, 0.12); }
+.dash-vital--yellow svg { color: #eab308; }
+.dash-vital--red { background: rgba(239, 68, 68, 0.12); }
+.dash-vital--red svg { color: var(--danger); }
+
+.dash-vital-val {
+  font-weight: 700;
+}
+
+.dash-vital-label {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+}
+
+/* Two-column layout */
+.dash-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+@media (max-width: 420px) {
+  .dash-columns {
+    grid-template-columns: 1fr;
+  }
+}
+
+.dash-col {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+  cursor: pointer;
+  transition: border-color 0.15s;
+  display: flex;
+  flex-direction: column;
+}
+
+.dash-col:active {
+  border-color: var(--accent);
+}
+
+.dash-col-header {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin-bottom: 0.75rem;
+}
+
+.dash-col-header svg {
+  color: var(--accent);
+}
+
+.dash-col-loading {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  padding: 1rem 0;
+}
+
+.dash-col-empty {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  margin-top: 0.5rem;
+  text-align: center;
+}
+
+/* Mini calorie ring for dashboard */
+.dash-ring-container {
+  position: relative;
+  width: 96px;
+  height: 96px;
+  margin: 0 auto 0.5rem;
+}
+
+.dash-ring-svg {
+  width: 100%;
+  height: 100%;
+}
+
+.dash-ring-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.dash-ring-value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.dash-ring-label {
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  margin-top: 0.125rem;
+}
+
+/* Mini macro bars */
+.dash-macros {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.dash-macro-row {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.dash-macro-icon {
+  flex-shrink: 0;
+  display: flex;
+}
+
+.dash-macro-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.dash-macro-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.7rem;
+  margin-bottom: 0.125rem;
+}
+
+.dash-macro-label {
+  font-weight: 600;
+}
+
+.dash-macro-nums {
+  color: var(--text-muted);
+}
+
+.dash-macro-track {
+  height: 4px;
+  background: var(--bg-input);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.dash-macro-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+/* Meals logged tags */
+.dash-meals-logged {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.5rem;
+}
+
+.dash-meal-tag {
+  font-size: 0.65rem;
+  padding: 0.15rem 0.4rem;
+  background: rgba(59, 130, 246, 0.1);
+  color: var(--accent);
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+/* Workout column */
+.dash-workout-today {
+  text-align: center;
+  margin-bottom: 0.5rem;
+}
+
+.dash-workout-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.dash-workout-name {
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin-top: 0.125rem;
+}
+
+.dash-start-btn {
+  width: 100%;
+  margin-bottom: 0.5rem;
+}
+
+.dash-rest-day {
+  text-align: center;
+  padding: 0.5rem 0;
+}
+
+.dash-rest-icon {
+  font-size: 2rem;
+  margin-bottom: 0.25rem;
+}
+
+.dash-rest-sub {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 0.25rem;
+}
+
+.dash-workout-stats {
+  display: flex;
+  justify-content: center;
+  gap: 1.25rem;
+  margin-top: auto;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.dash-workout-stat {
+  display: flex;
+  align-items: baseline;
+  gap: 0.25rem;
+}
+
+.dash-workout-stat-val {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.dash-workout-stat-label {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+
+/* Week schedule strip */
+.dash-week-strip {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 1rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.dash-week-strip::-webkit-scrollbar { display: none; }
+
+.dash-week-day {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  padding: 0.5rem 0.25rem;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+}
+
+.dash-week-day--today {
+  border-color: var(--accent);
+  background: rgba(59, 130, 246, 0.08);
+}
+
+.dash-week-day--rest {
+  opacity: 0.5;
+}
+
+.dash-week-day-name {
+  display: block;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.dash-week-day-workout {
+  display: block;
+  font-size: 0.6rem;
+  color: var(--text-secondary);
+  margin-top: 0.125rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Legacy compat - keep shared styles */
 .today-card {
   background: var(--bg-card);
   border-radius: var(--radius);
@@ -788,6 +1109,17 @@ textarea {
   font-size: 0.8rem;
   color: var(--text-muted);
   font-weight: 500;
+}
+
+/* Workout-page exercise picker */
+.workout-picker {
+  margin-top: 0;
+  border: none;
+  background: var(--bg-primary);
+}
+
+.workout-add-exercise-btn {
+  margin-top: 0.25rem;
 }
 
 /* ============================================
@@ -1816,14 +2148,30 @@ textarea {
   color: var(--text-secondary);
 }
 
-/* FAB */
-.nutrition-fab {
-  position: fixed;
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 80px);
-  right: 1rem;
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
+/* Inline Food Input */
+.nutrition-inline-input {
+  background: var(--bg-secondary);
+  border-radius: var(--radius);
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.nutrition-input-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-end;
+}
+
+.nutrition-input-row .nutrition-input-text {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+.nutrition-send-btn {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-sm);
   background: var(--accent);
   color: white;
   border: none;
@@ -1831,12 +2179,104 @@ textarea {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
-  z-index: 50;
 }
 
-.nutrition-fab:active {
+.nutrition-send-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.nutrition-send-btn:active:not(:disabled) {
   transform: scale(0.95);
+}
+
+.nutrition-send-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+/* Quick Access Foods */
+.nutrition-quick-access {
+  margin-bottom: 0.75rem;
+}
+
+.nutrition-quick-label {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.nutrition-quick-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.nutrition-quick-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.375rem 0.625rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.nutrition-quick-chip:active {
+  transform: scale(0.96);
+}
+
+.nutrition-quick-chip--saved {
+  border-color: var(--accent);
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.nutrition-quick-chip--saved svg {
+  color: var(--accent);
+}
+
+.nutrition-quick-chip-name {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nutrition-quick-chip-cal {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+/* Save as custom food button */
+.nutrition-food-save {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0.25rem;
+  flex-shrink: 0;
+  opacity: 0.6;
+  transition: opacity 0.15s, color 0.15s;
+}
+
+.nutrition-food-save:active {
+  color: var(--accent);
+  opacity: 1;
 }
 
 /* Modal */
