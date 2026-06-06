@@ -1,15 +1,24 @@
 import { useNavigate } from 'react-router-dom';
-import { Play, TrendingUp, Heart, Scale, Utensils, Beef, Wheat, Droplet, Dumbbell, Moon } from 'lucide-react';
+import { Play, TrendingUp, Heart, Scale, Utensils, Beef, Wheat, Droplet, Dumbbell, Moon, Clock, CheckSquare } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useSchedule } from '../hooks/useSchedule';
 import { useWorkoutHistory } from '../hooks/useWorkoutHistory';
 import { useTemplates } from '../hooks/useTemplates';
 import { useHealthMetrics } from '../hooks/useHealthMetrics';
 import { useNutritionGoals, useFoodLogs } from '../hooks/useNutrition';
+import { useHabits, useHabitLogs, useRizeDaily } from '../hooks/useHabits';
 import { AppHeader } from '../components/Layout';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { DAY_NAMES, MEAL_LABELS, type DayOfWeek, type MealType } from '../types/database';
 import { format } from 'date-fns';
+
+// YYYY-MM-DD in local (browser) time — matches what we write to habit_logs from the client.
+function ymd(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
 
 function MiniCalorieRing({ consumed, target }: { consumed: number; target: number }) {
   const pct = Math.min(consumed / (target || 1), 1.5);
@@ -67,6 +76,16 @@ export default function HomePage() {
   const { goals } = useNutritionGoals(user?.id);
   const todayStr = new Date().toISOString().split('T')[0];
   const { dailySummary, loading: nutritionLoading } = useFoodLogs(user?.id, todayStr);
+
+  // Habits — today's checklist
+  const todayLocal = ymd(new Date());
+  const yesterdayLocal = ymd(new Date(Date.now() - 86400000));
+  const { habits } = useHabits(user?.id);
+  const { isCompleted, toggle } = useHabitLogs(user?.id, todayLocal, todayLocal);
+  // Rize — yesterday's working hours
+  const { getDate: getRize } = useRizeDaily(user?.id, yesterdayLocal, yesterdayLocal);
+  const rizeYesterday = getRize(yesterdayLocal);
+
   const navigate = useNavigate();
 
   const healthToday = getHealthToday();
@@ -145,6 +164,48 @@ export default function HomePage() {
               <span className="dash-vital-label">lbs</span>
             </div>
           )}
+          {rizeYesterday && (
+            <div className="dash-vital">
+              <Clock size={14} />
+              <span className="dash-vital-val">
+                {Math.floor(rizeYesterday.work_seconds / 3600)}h
+                {String(Math.round((rizeYesterday.work_seconds % 3600) / 60)).padStart(2, '0')}m
+              </span>
+              <span className="dash-vital-label">yest. work</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Today's habits — quick checklist */}
+      {habits.length > 0 && (
+        <div className="dash-habits" onClick={() => navigate('/habits')}>
+          <div className="dash-habits-head">
+            <div className="dash-habits-title">
+              <CheckSquare size={14} />
+              <span>Today's Habits</span>
+            </div>
+            <span className="dash-habits-count">
+              {habits.filter((h) => isCompleted(h.id, todayLocal)).length} / {habits.length}
+            </span>
+          </div>
+          <div className="dash-habits-row">
+            {habits.map((h) => {
+              const done = isCompleted(h.id, todayLocal);
+              return (
+                <button
+                  key={h.id}
+                  className={`dash-habit-chip ${done ? 'dash-habit-chip--done' : ''}`}
+                  onClick={(e) => { e.stopPropagation(); toggle(h.id, todayLocal); }}
+                  title={h.name}
+                >
+                  <span className="dash-habit-chip-emoji">{h.emoji || '•'}</span>
+                  <span className="dash-habit-chip-name">{h.name}</span>
+                  {done && <span className="dash-habit-chip-check">✓</span>}
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
 

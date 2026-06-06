@@ -217,3 +217,58 @@ export interface DailyNutritionSummary {
   total_fat: number;
   meals: Record<MealType, FoodLog[]>;
 }
+
+// ============================================
+// Habits
+// ============================================
+
+export interface Habit {
+  id: string;
+  user_id: string;
+  name: string;
+  emoji: string | null;
+  goal_per_month: number;
+  display_order: number;
+  archived: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface HabitLog {
+  habit_id: string;
+  user_id: string;
+  log_date: string; // YYYY-MM-DD
+  created_at: string;
+}
+
+export interface HabitStats {
+  habit_id: string;
+  total_completions: number;
+  goal: number;
+  consistency_pct: number; // 0-100, completions / goal
+  current_streak: number;
+  longest_streak: number;
+  last_completed_date: string | null;
+}
+
+// ============================================
+// Rize integration
+// ============================================
+
+export interface RizeDaily {
+  user_id: string;
+  log_date: string; // YYYY-MM-DD (in user's timezone)
+  work_seconds: number;
+  focus_seconds: number | null;
+  meeting_seconds: number | null;
+  break_seconds: number | null;
+  fetched_at: string;
+}
+
+export interface RizeConnectionStatus {
+  user_id: string;
+  timezone: string;
+  last_synced_at: string | null;
+  created_at: string;
+  updated_at: string;
+}

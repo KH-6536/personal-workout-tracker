@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
-import { Home, Calendar, Layers, Heart, Utensils, LogOut, Dumbbell } from 'lucide-react';
+import { Home, Calendar, Layers, Heart, Utensils, LogOut, Dumbbell, CheckSquare } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
 export default function Layout() {
@@ -22,13 +22,9 @@ export default function Layout() {
           <Home size={22} />
           <span>Home</span>
         </NavLink>
-        <NavLink to="/history" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-          <Calendar size={22} />
-          <span>History</span>
-        </NavLink>
-        <NavLink to="/templates" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-          <Layers size={22} />
-          <span>Splits</span>
+        <NavLink to="/habits" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+          <CheckSquare size={22} />
+          <span>Habits</span>
         </NavLink>
         <NavLink to="/nutrition" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
           <Utensils size={22} />
@@ -37,6 +33,14 @@ export default function Layout() {
         <NavLink to="/health" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
           <Heart size={22} />
           <span>Health</span>
+        </NavLink>
+        <NavLink to="/templates" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+          <Layers size={22} />
+          <span>Splits</span>
+        </NavLink>
+        <NavLink to="/history" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+          <Calendar size={22} />
+          <span>History</span>
         </NavLink>
         <button className="nav-item" onClick={signOut}>
           <LogOut size={22} />
