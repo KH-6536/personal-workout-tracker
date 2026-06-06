@@ -2747,10 +2747,16 @@ textarea {
 .icon-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
 .icon-btn--sm { padding: 0.2rem; }
 
-.habits-summary-card {
+.habits-toolbar-right {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 0.5rem;
+}
+
+/* ============================================
+   Daily Completion card (top — replaces "This month")
+   ============================================ */
+.daily-completion-card {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -2758,48 +2764,84 @@ textarea {
   margin-bottom: 1rem;
 }
 
-.habits-summary-label {
+.dc-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.625rem;
+}
+
+.dc-label {
   font-size: 0.7rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--text-muted);
-  margin-bottom: 0.2rem;
+  margin-bottom: 0.3rem;
 }
 
-.habits-summary-value {
-  font-size: 2rem;
-  font-weight: 700;
+.dc-fraction {
+  display: flex;
+  align-items: baseline;
+  gap: 0.1rem;
   line-height: 1;
 }
 
-.habits-summary-of {
-  font-size: 1rem;
-  color: var(--text-muted);
-  font-weight: 500;
-  margin-left: 0.15rem;
-}
-
-.habits-summary-pct {
-  text-align: right;
-  font-weight: 700;
-  font-size: 1.1rem;
+.dc-num {
+  font-size: 2.4rem;
+  font-weight: 800;
   color: var(--success);
-  min-width: 8rem;
 }
 
-.habits-summary-track {
+.dc-slash {
+  font-size: 1.4rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  margin: 0 0.1rem;
+}
+
+.dc-denom {
+  font-size: 1.4rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.dc-date-tag {
+  display: inline-block;
   margin-top: 0.4rem;
-  height: 5px;
+  padding: 0.15rem 0.5rem;
+  background: var(--bg-input);
+  border-radius: 999px;
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+}
+
+.dc-pct {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--success);
+}
+
+.dc-track {
+  height: 6px;
   background: var(--bg-input);
   border-radius: 999px;
   overflow: hidden;
+  margin-bottom: 0.75rem;
 }
 
-.habits-summary-fill {
+.dc-fill {
   height: 100%;
   background: var(--success);
   border-radius: 999px;
-  transition: width 0.3s;
+  transition: width 0.25s ease-out;
+}
+
+.daily-completion-card .habits-chart {
+  height: 100px;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
 }
 
 /* ============================================
@@ -2846,7 +2888,7 @@ textarea {
   white-space: nowrap;
 }
 
-.habits-th-name { width: 38%; }
+.habits-th-name { width: 22%; min-width: 7rem; }
 
 .habit-emoji {
   margin-right: 0.35rem;
@@ -2918,54 +2960,198 @@ textarea {
 .habit-check--sm { width: 22px; height: 22px; font-size: 0.75rem; }
 
 /* ============================================
-   Habits — month view (Excel-like horizontal scroll)
+   Habits — Excel-style month view (weeks side-by-side, wider than .page)
    ============================================ */
-.habits-month-wrap {
+
+/* Break out of the 600px .page container so the grid uses full screen width */
+.habits-excel-wrap {
+  position: relative;
+  left: calc(-50vw + 50%);
+  width: 100vw;
+  max-width: 100vw;
+  padding: 0 1rem;
+  margin-bottom: 1rem;
+  box-sizing: border-box;
+}
+
+.habits-excel-scroll {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  overflow: hidden;
-}
-
-.habits-month-scroll {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
+  max-width: 1400px;
+  margin: 0 auto;
 }
 
-.habits-table--month {
-  border: none;
-  border-radius: 0;
+.habits-excel-table {
+  border-collapse: collapse;
   font-size: 0.78rem;
   min-width: max-content;
+  width: 100%;
 }
 
-.habits-table--month th,
-.habits-table--month td {
-  padding: 0.35rem 0.15rem;
+.habits-excel-table th,
+.habits-excel-table td {
+  padding: 0.4rem 0.3rem;
+  text-align: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  white-space: nowrap;
 }
 
-.habits-th-sticky,
-.habits-td-sticky {
+.habits-excel-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Row 1: week headers */
+.excel-row-weeks th {
+  background: var(--bg-input);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  padding: 0.5rem 0.3rem;
+  border-right: 2px solid var(--bg-primary);
+}
+
+.excel-row-weeks th.excel-th-habits {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  letter-spacing: 0.02em;
+}
+
+.excel-row-weeks th.excel-th-analysis {
+  background: rgba(59, 130, 246, 0.12);
+  color: var(--accent);
+  border-right: none;
+}
+
+/* Row 2: day-of-week + analysis subheaders */
+.excel-row-dow th {
+  background: var(--bg-input);
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.3rem 0.2rem;
+}
+
+.excel-th-subhead {
+  font-size: 0.68rem !important;
+  font-weight: 600 !important;
+  text-transform: uppercase;
+  color: var(--text-muted) !important;
+  letter-spacing: 0.05em;
+  background: rgba(59, 130, 246, 0.06) !important;
+  min-width: 3.4rem;
+}
+
+/* Row 3: dates */
+.excel-row-dates th {
+  background: var(--bg-input);
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.35rem 0.2rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.excel-th-dow,
+.excel-th-date {
+  min-width: 30px;
+}
+
+/* Highlight states */
+.excel-cell--today {
+  background: var(--accent-dim) !important;
+  color: var(--accent) !important;
+}
+
+.excel-cell--outside {
+  opacity: 0.35;
+}
+
+/* Week-start vertical separator — visually divides "Week 1 | Week 2" */
+.excel-cell--week-start {
+  border-left: 2px solid var(--bg-primary);
+}
+
+/* Sticky left column: habit name */
+.excel-th-habits,
+.excel-td-habits {
+  text-align: left !important;
+  padding-left: 0.75rem !important;
+  padding-right: 0.5rem !important;
+  width: 9rem;
+  min-width: 9rem;
+  max-width: 9rem;
   position: sticky;
   left: 0;
-  background: var(--bg-card);
-  z-index: 1;
-  min-width: 9rem;
-  text-align: left;
-  padding-left: 0.6rem !important;
+  z-index: 2;
   border-right: 1px solid var(--border);
 }
 
-.habits-th-day-narrow {
-  font-size: 0.72rem;
-  color: var(--text-muted);
-  padding: 0.4rem 0.2rem !important;
-  min-width: 22px;
+.excel-th-habits { background: var(--bg-secondary); }
+
+.excel-td-habits {
+  background: var(--bg-card);
+  font-weight: 500;
+  font-size: 0.82rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.habits-th-day--outside { color: var(--text-muted); opacity: 0.5; }
+.excel-td-habits .habit-name-text {
+  font-size: 0.82rem;
+}
 
-.habits-td-check-narrow { padding: 0.2rem 0.1rem !important; }
+/* Checkbox cells */
+.excel-td-check {
+  padding: 0.25rem 0.2rem !important;
+}
+
+/* Analysis cells (right side) */
+.excel-td-analysis {
+  padding: 0.4rem 0.6rem !important;
+  background: rgba(59, 130, 246, 0.04);
+  font-weight: 600;
+}
+
+.excel-td-goal,
+.excel-td-actual {
+  font-size: 0.85rem;
+  min-width: 3.4rem;
+}
+
+.excel-td-actual {
+  color: var(--success);
+}
+
+.excel-td-progress {
+  min-width: 5rem;
+}
+
+.excel-progress-track {
+  height: 6px;
+  background: var(--bg-input);
+  border-radius: 999px;
+  overflow: hidden;
+  width: 60px;
+  margin: 0 auto;
+}
+
+.excel-progress-fill {
+  height: 100%;
+  background: var(--success);
+  border-radius: 999px;
+}
+
+/* Medium check size used in month view */
+.habit-check--md {
+  width: 26px;
+  height: 26px;
+  font-size: 0.9rem;
+}
 
 /* ============================================
    Habits — per-habit stat cards

@@ -117,6 +117,7 @@ export function useHabitLogs(userId: string | undefined, startDate: string, endD
 
   // Toggle a habit completion for a date.
   // Optimistic — flips local state immediately, rolls back on error.
+  // Duplicate-key on insert is treated as success (row already exists, no rollback).
   const toggle = useCallback(async (habitId: string, date: string) => {
     if (!userId) return;
     const key = `${habitId}|${date}`;
@@ -139,6 +140,7 @@ export function useHabitLogs(userId: string | undefined, startDate: string, endD
         .eq('habit_id', habitId)
         .eq('log_date', date);
       if (error) {
+        console.error('[habit toggle] delete failed:', error);
         // Rollback
         setLogs((prev) => [
           ...prev,
@@ -151,6 +153,10 @@ export function useHabitLogs(userId: string | undefined, startDate: string, endD
         .from('habit_logs')
         .insert({ habit_id: habitId, user_id: userId, log_date: date });
       if (error) {
+        // 23505 = duplicate key — row already exists, optimistic state is correct
+        const code = (error as { code?: string }).code;
+        if (code === '23505') return { error: null };
+        console.error('[habit toggle] insert failed:', error);
         // Rollback
         setLogs((prev) => prev.filter((l) => !(l.habit_id === habitId && l.log_date === date)));
         return { error };
@@ -163,110 +169,76 @@ export function useHabitLogs(userId: string | undefined, startDate: string, endD
 }
 
 // ============================================
-// useHabitStats — per-habit aggregations over a window
-// Period = month covers the Excel "Goal / Actual / Progress" columns.
+// computeHabitStats — pure helper. Use with logs from useHabitLogs so stats
+// stay in sync with optimistic toggles.
 // ============================================
-export function useHabitStats(
-  userId: string | undefined,
+export function computeHabitStats(
   habits: Habit[],
+  logs: HabitLog[],
   windowStart: string,
   windowEnd: string,
-) {
-  const [logs, setLogs] = useState<HabitLog[]>([]);
-  const [loading, setLoading] = useState(true);
+): { statsByHabit: Record<string, HabitStats>; dailyTotals: Record<string, number> } {
+  // Filter to window
+  const inRange = logs.filter((l) => l.log_date >= windowStart && l.log_date <= windowEnd);
 
-  const fetchLogs = useCallback(async () => {
-    if (!userId || habits.length === 0) {
-      setLogs([]);
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    const habitIds = habits.map((h) => h.id);
-    const { data, error } = await supabase
-      .from('habit_logs')
-      .select('*')
-      .eq('user_id', userId)
-      .in('habit_id', habitIds)
-      .gte('log_date', windowStart)
-      .lte('log_date', windowEnd);
-    if (error) console.error('Error fetching stats logs:', error);
-    else setLogs(data ?? []);
-    setLoading(false);
-  }, [userId, habits, windowStart, windowEnd]);
+  const byHabit: Record<string, string[]> = {};
+  for (const h of habits) byHabit[h.id] = [];
+  for (const l of inRange) {
+    if (byHabit[l.habit_id]) byHabit[l.habit_id].push(l.log_date);
+  }
 
-  useEffect(() => { fetchLogs(); }, [fetchLogs]);
+  const todayPT = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
+  const yesterdayPT = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    return d.toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
+  })();
 
-  const statsByHabit = useMemo<Record<string, HabitStats>>(() => {
-    const byHabit: Record<string, string[]> = {};
-    for (const h of habits) byHabit[h.id] = [];
-    for (const l of logs) {
-      if (byHabit[l.habit_id]) byHabit[l.habit_id].push(l.log_date);
-    }
+  const statsByHabit: Record<string, HabitStats> = {};
+  for (const h of habits) {
+    const dates = (byHabit[h.id] ?? []).sort();
+    const total_completions = dates.length;
+    const goal = h.goal_per_month;
+    const consistency_pct = goal > 0 ? Math.round((total_completions / goal) * 100) : 0;
 
-    const result: Record<string, HabitStats> = {};
-    for (const h of habits) {
-      const dates = (byHabit[h.id] ?? []).sort();
-      const total_completions = dates.length;
-      const goal = h.goal_per_month;
-      const consistency_pct = goal > 0 ? Math.round((total_completions / goal) * 100) : 0;
-
-      // Streak calculation
-      let longest_streak = 0;
-      let current_streak = 0;
-      let runLen = 0;
-      let prevDate: string | null = null;
-      for (const d of dates) {
-        if (prevDate === null) {
-          runLen = 1;
-        } else {
-          const prev = new Date(prevDate);
-          const cur = new Date(d);
-          const diffDays = Math.round((cur.getTime() - prev.getTime()) / 86400000);
-          if (diffDays === 1) runLen += 1;
-          else runLen = 1;
-        }
-        longest_streak = Math.max(longest_streak, runLen);
-        prevDate = d;
+    let longest_streak = 0;
+    let runLen = 0;
+    let prevDate: string | null = null;
+    for (const d of dates) {
+      if (prevDate === null) runLen = 1;
+      else {
+        const prev = new Date(prevDate);
+        const cur = new Date(d);
+        const diffDays = Math.round((cur.getTime() - prev.getTime()) / 86400000);
+        runLen = diffDays === 1 ? runLen + 1 : 1;
       }
-
-      // Current streak: only counts if last_completed is today or yesterday (Pacific calendar)
-      const last_completed_date = dates.length ? dates[dates.length - 1] : null;
-      if (last_completed_date) {
-        const todayPT = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
-        const yesterdayPT = (() => {
-          const d = new Date();
-          d.setDate(d.getDate() - 1);
-          return d.toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
-        })();
-        if (last_completed_date === todayPT || last_completed_date === yesterdayPT) {
-          current_streak = runLen;
-        }
-      }
-
-      result[h.id] = {
-        habit_id: h.id,
-        total_completions,
-        goal,
-        consistency_pct,
-        current_streak,
-        longest_streak,
-        last_completed_date,
-      };
+      longest_streak = Math.max(longest_streak, runLen);
+      prevDate = d;
     }
-    return result;
-  }, [habits, logs]);
 
-  // Per-day completion totals across all habits in the window
-  const dailyTotals = useMemo(() => {
-    const byDate: Record<string, number> = {};
-    for (const l of logs) {
-      byDate[l.log_date] = (byDate[l.log_date] ?? 0) + 1;
+    const last_completed_date = dates.length ? dates[dates.length - 1] : null;
+    let current_streak = 0;
+    if (last_completed_date && (last_completed_date === todayPT || last_completed_date === yesterdayPT)) {
+      current_streak = runLen;
     }
-    return byDate;
-  }, [logs]);
 
-  return { statsByHabit, dailyTotals, loading, refetch: fetchLogs };
+    statsByHabit[h.id] = {
+      habit_id: h.id,
+      total_completions,
+      goal,
+      consistency_pct,
+      current_streak,
+      longest_streak,
+      last_completed_date,
+    };
+  }
+
+  const dailyTotals: Record<string, number> = {};
+  for (const l of inRange) {
+    dailyTotals[l.log_date] = (dailyTotals[l.log_date] ?? 0) + 1;
+  }
+
+  return { statsByHabit, dailyTotals };
 }
 
 // ============================================

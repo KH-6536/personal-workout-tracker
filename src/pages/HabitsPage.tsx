@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight, Plus, Pencil, Trash2, Flame, TrendingUp, X } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
-import { useHabits, useHabitLogs, useHabitStats } from '../hooks/useHabits';
+import { useHabits, useHabitLogs, computeHabitStats } from '../hooks/useHabits';
 import { AppHeader } from '../components/Layout';
 import LoadingSpinner from '../components/LoadingSpinner';
 import type { Habit } from '../types/database';
@@ -9,7 +9,7 @@ import { format, startOfMonth, endOfMonth, addMonths, subMonths, addDays, startO
 
 type ViewMode = 'week' | 'month';
 
-// YYYY-MM-DD in local time (no UTC offset shenanigans)
+// YYYY-MM-DD in local time (matches what we write to habit_logs from the client)
 function ymd(d: Date): string {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -17,22 +17,29 @@ function ymd(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
+const DAY_LABELS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+
 export default function HabitsPage() {
   const { user } = useAuth();
-  const [viewMode, setViewMode] = useState<ViewMode>('week');
+  const [viewMode, setViewMode] = useState<ViewMode>('month'); // default = month per user request
   const [anchorMonth, setAnchorMonth] = useState(() => new Date());
   const [anchorWeek, setAnchorWeek] = useState(() => startOfWeek(new Date(), { weekStartsOn: 0 }));
 
-  // Always fetch the visible month (covers both week and month views) plus a small buffer
   const monthStart = startOfMonth(anchorMonth);
   const monthEnd = endOfMonth(anchorMonth);
-  // Extend a week on either side so week view never falls outside fetched range
   const fetchStart = ymd(addDays(monthStart, -7));
   const fetchEnd = ymd(addDays(monthEnd, 7));
 
   const { habits, loading: habitsLoading, createHabit, updateHabit, archiveHabit } = useHabits(user?.id);
-  const { isCompleted, toggle, loading: logsLoading } = useHabitLogs(user?.id, fetchStart, fetchEnd);
-  const { statsByHabit, dailyTotals } = useHabitStats(user?.id, habits, ymd(monthStart), ymd(monthEnd));
+  const { logs, isCompleted, toggle, loading: logsLoading } = useHabitLogs(user?.id, fetchStart, fetchEnd);
+
+  // Stats derive from the SAME logs state that toggle mutates → optimistic toggles
+  // immediately reflect in stats, chart, and per-habit cards. (Fixes the "chart
+  // doesn't update" and the earlier sync gap.)
+  const { statsByHabit, dailyTotals } = useMemo(
+    () => computeHabitStats(habits, logs, ymd(monthStart), ymd(monthEnd)),
+    [habits, logs, monthStart, monthEnd]
+  );
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
@@ -51,18 +58,24 @@ export default function HabitsPage() {
     return Array.from({ length: 7 }, (_, i) => addDays(anchorWeek, i));
   }, [anchorWeek]);
 
-  // Aggregate this month for header
-  const monthAgg = useMemo(() => {
-    const totalGoal = habits.reduce((sum, h) => sum + h.goal_per_month, 0);
-    const totalCompleted = habits.reduce((sum, h) => sum + (statsByHabit[h.id]?.total_completions ?? 0), 0);
-    const pct = totalGoal > 0 ? (totalCompleted / totalGoal) * 100 : 0;
-    return { totalGoal, totalCompleted, pct };
-  }, [habits, statsByHabit]);
+  // Chunk month into 7-day groups (matches the Excel "Week 1 / Week 2 / ..." layout)
+  const monthWeeks = useMemo(() => {
+    const chunks: Date[][] = [];
+    for (let i = 0; i < monthDays.length; i += 7) {
+      chunks.push(monthDays.slice(i, i + 7));
+    }
+    return chunks;
+  }, [monthDays]);
 
-  // Daily completion chart data for the visible month
+  const todayYMD = ymd(new Date());
+  const todayDone = habits.filter((h) => isCompleted(h.id, todayYMD)).length;
+
+  // Daily completion chart data (visible month)
   const chartData = useMemo(() => {
     return monthDays.map((d) => ({
       date: d,
+      done: dailyTotals[ymd(d)] ?? 0,
+      total: habits.length,
       pct: habits.length > 0
         ? Math.round(((dailyTotals[ymd(d)] ?? 0) / habits.length) * 100)
         : 0,
@@ -75,7 +88,7 @@ export default function HabitsPage() {
     <div className="page">
       <AppHeader title="Habits" subtitle={format(anchorMonth, 'MMMM yyyy')} />
 
-      {/* Month nav + view toggle */}
+      {/* Top toolbar: month nav + view toggle + add */}
       <div className="habits-toolbar">
         <div className="habits-month-nav">
           <button className="icon-btn" onClick={() => setAnchorMonth(subMonths(anchorMonth, 1))}>
@@ -86,37 +99,34 @@ export default function HabitsPage() {
             <ChevronRight size={18} />
           </button>
         </div>
-        <div className="habits-view-toggle">
-          <button
-            className={`view-btn ${viewMode === 'week' ? 'view-btn--active' : ''}`}
-            onClick={() => setViewMode('week')}
-          >
-            Week
-          </button>
-          <button
-            className={`view-btn ${viewMode === 'month' ? 'view-btn--active' : ''}`}
-            onClick={() => setViewMode('month')}
-          >
-            Month
+        <div className="habits-toolbar-right">
+          <div className="habits-view-toggle">
+            <button
+              className={`view-btn ${viewMode === 'week' ? 'view-btn--active' : ''}`}
+              onClick={() => setViewMode('week')}
+            >
+              Week
+            </button>
+            <button
+              className={`view-btn ${viewMode === 'month' ? 'view-btn--active' : ''}`}
+              onClick={() => setViewMode('month')}
+            >
+              Month
+            </button>
+          </div>
+          <button className="btn btn-primary btn-small" onClick={() => setShowAddModal(true)}>
+            <Plus size={14} /> Add Habit
           </button>
         </div>
       </div>
 
-      {/* Month progress summary card */}
-      <div className="habits-summary-card">
-        <div>
-          <div className="habits-summary-label">This month</div>
-          <div className="habits-summary-value">
-            {monthAgg.totalCompleted}<span className="habits-summary-of">/{monthAgg.totalGoal}</span>
-          </div>
-        </div>
-        <div className="habits-summary-pct">
-          {monthAgg.pct.toFixed(1)}%
-          <div className="habits-summary-track">
-            <div className="habits-summary-fill" style={{ width: `${Math.min(monthAgg.pct, 100)}%` }} />
-          </div>
-        </div>
-      </div>
+      {/* Daily completion card — REPLACES "This month".
+          Big "X/Y" updates live when toggling; area chart shows the month. */}
+      <DailyCompletionCard
+        todayDone={todayDone}
+        totalHabits={habits.length}
+        chartData={chartData}
+      />
 
       {/* Empty state */}
       {habits.length === 0 ? (
@@ -140,21 +150,14 @@ export default function HabitsPage() {
           loading={logsLoading}
         />
       ) : (
-        <MonthGrid
+        <MonthGridExcel
           habits={habits}
-          monthDays={monthDays}
+          monthWeeks={monthWeeks}
+          monthOfDays={monthStart}
           isCompleted={isCompleted}
           onToggle={toggle}
           statsByHabit={statsByHabit}
         />
-      )}
-
-      {/* Daily completion chart */}
-      {habits.length > 0 && (
-        <section className="section">
-          <h3 className="section-title">Daily completion</h3>
-          <AreaChart data={chartData} highlightToday />
-        </section>
       )}
 
       {/* Per-habit stat cards */}
@@ -192,12 +195,11 @@ export default function HabitsPage() {
         </section>
       )}
 
-      {/* Floating add button */}
+      {/* Floating add button — still here for fast access when scrolled */}
       <button className="fab" onClick={() => setShowAddModal(true)} title="Add habit">
         <Plus size={22} />
       </button>
 
-      {/* Add/edit modals */}
       {showAddModal && (
         <HabitModal
           onClose={() => setShowAddModal(false)}
@@ -221,6 +223,51 @@ export default function HabitsPage() {
           }}
         />
       )}
+    </div>
+  );
+}
+
+// ============================================
+// Daily completion card — sits at the top.
+// Shows today's "X / Y" prominently + monthly area chart + per-day "X/Y" tooltip on tap.
+// ============================================
+function DailyCompletionCard({
+  todayDone,
+  totalHabits,
+  chartData,
+}: {
+  todayDone: number;
+  totalHabits: number;
+  chartData: { date: Date; done: number; total: number; pct: number }[];
+}) {
+  const pct = totalHabits > 0 ? Math.round((todayDone / totalHabits) * 100) : 0;
+  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
+  const hovered = hoveredIdx != null ? chartData[hoveredIdx] : null;
+
+  return (
+    <div className="daily-completion-card">
+      <div className="dc-head">
+        <div>
+          <div className="dc-label">Today's Completion</div>
+          <div className="dc-fraction">
+            <span className="dc-num">{hovered ? hovered.done : todayDone}</span>
+            <span className="dc-slash">/</span>
+            <span className="dc-denom">{hovered ? hovered.total : totalHabits}</span>
+          </div>
+          {hovered && (
+            <div className="dc-date-tag">{format(hovered.date, 'MMM d')}</div>
+          )}
+        </div>
+        <div className="dc-pct">{(hovered ? hovered.pct : pct).toFixed(0)}%</div>
+      </div>
+      <div className="dc-track">
+        <div className="dc-fill" style={{ width: `${Math.min(pct, 100)}%` }} />
+      </div>
+      <AreaChart
+        data={chartData}
+        highlightToday
+        onHover={setHoveredIdx}
+      />
     </div>
   );
 }
@@ -250,7 +297,6 @@ function WeekGrid({
   loading: boolean;
 }) {
   const today = new Date();
-  const dayLabels = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
   return (
     <div className="habits-week">
       <div className="habits-week-nav">
@@ -271,7 +317,7 @@ function WeekGrid({
             <th className="habits-th-name"></th>
             {weekDays.map((d, i) => (
               <th key={i} className={`habits-th-day ${isSameDay(d, today) ? 'habits-th-day--today' : ''}`}>
-                <div className="habits-th-dow">{dayLabels[i]}</div>
+                <div className="habits-th-dow">{DAY_LABELS[i]}</div>
                 <div className="habits-th-date">{d.getDate()}</div>
               </th>
             ))}
@@ -314,39 +360,73 @@ function WeekGrid({
 }
 
 // ============================================
-// Month view (Excel-style full grid, horizontal scroll)
+// Month view — Excel-style: weeks side-by-side, day-of-week + date labels,
+// "Goal / Actual / Progress" analysis on the right. Wider than the page —
+// horizontal scroll on smaller viewports, full bleed on larger ones.
 // ============================================
-function MonthGrid({
+function MonthGridExcel({
   habits,
-  monthDays,
+  monthWeeks,
+  monthOfDays,
   isCompleted,
   onToggle,
   statsByHabit,
 }: {
   habits: Habit[];
-  monthDays: Date[];
+  monthWeeks: Date[][];
+  monthOfDays: Date;
   isCompleted: (h: string, d: string) => boolean;
   onToggle: (h: string, d: string) => Promise<unknown>;
   statsByHabit: Record<string, { consistency_pct: number; total_completions: number; goal: number }>;
 }) {
   const today = new Date();
-  const monthOfDays = monthDays[0] ? monthDays[0] : new Date();
+  // Total days across all chunks (used for analysis right-edge separators)
   return (
-    <div className="habits-month-wrap">
-      <div className="habits-month-scroll">
-        <table className="habits-table habits-table--month">
+    <div className="habits-excel-wrap">
+      <div className="habits-excel-scroll">
+        <table className="habits-excel-table">
           <thead>
-            <tr>
-              <th className="habits-th-name habits-th-sticky"></th>
-              {monthDays.map((d) => (
-                <th
-                  key={ymd(d)}
-                  className={`habits-th-day-narrow ${isSameDay(d, today) ? 'habits-th-day--today' : ''} ${!isSameMonth(d, monthOfDays) ? 'habits-th-day--outside' : ''}`}
-                >
-                  {d.getDate()}
+            {/* Row 1: Week N labels spanning 7 cells, plus Analysis spanning 3 */}
+            <tr className="excel-row-weeks">
+              <th className="excel-th-habits" rowSpan={3}>My Habits</th>
+              {monthWeeks.map((week, wi) => (
+                <th key={`w-${wi}`} className="excel-th-week" colSpan={week.length}>
+                  Week {wi + 1}
                 </th>
               ))}
-              <th className="habits-th-pct">%</th>
+              <th className="excel-th-analysis" colSpan={3}>Analysis</th>
+            </tr>
+            {/* Row 2: day-of-week labels per actual date */}
+            <tr className="excel-row-dow">
+              {monthWeeks.map((week, wi) =>
+                week.map((d, di) => (
+                  <th
+                    key={`dow-${wi}-${di}`}
+                    className={`excel-th-dow ${isSameDay(d, today) ? 'excel-cell--today' : ''} ${!isSameMonth(d, monthOfDays) ? 'excel-cell--outside' : ''} ${di === 0 ? 'excel-cell--week-start' : ''}`}
+                  >
+                    {DAY_LABELS[d.getDay()]}
+                  </th>
+                ))
+              )}
+              <th className="excel-th-subhead">Goal</th>
+              <th className="excel-th-subhead">Actual</th>
+              <th className="excel-th-subhead">Progress</th>
+            </tr>
+            {/* Row 3: date numbers */}
+            <tr className="excel-row-dates">
+              {monthWeeks.map((week, wi) =>
+                week.map((d, di) => (
+                  <th
+                    key={`date-${wi}-${di}`}
+                    className={`excel-th-date ${isSameDay(d, today) ? 'excel-cell--today' : ''} ${!isSameMonth(d, monthOfDays) ? 'excel-cell--outside' : ''} ${di === 0 ? 'excel-cell--week-start' : ''}`}
+                  >
+                    {d.getDate()}
+                  </th>
+                ))
+              )}
+              <th></th>
+              <th></th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
@@ -354,26 +434,40 @@ function MonthGrid({
               const stat = statsByHabit[h.id];
               return (
                 <tr key={h.id}>
-                  <td className="habits-td-name habits-td-sticky">
+                  <td className="excel-td-habits">
                     {h.emoji && <span className="habit-emoji">{h.emoji}</span>}
                     <span className="habit-name-text">{h.name}</span>
                   </td>
-                  {monthDays.map((d) => {
-                    const ds = ymd(d);
-                    const checked = isCompleted(h.id, ds);
-                    return (
-                      <td key={ds} className="habits-td-check-narrow">
-                        <button
-                          className={`habit-check habit-check--sm ${checked ? 'habit-check--on' : ''}`}
-                          onClick={() => onToggle(h.id, ds)}
-                          aria-label={`${h.name} on ${ds}`}
+                  {monthWeeks.map((week, wi) =>
+                    week.map((d, di) => {
+                      const ds = ymd(d);
+                      const checked = isCompleted(h.id, ds);
+                      return (
+                        <td
+                          key={`c-${wi}-${di}`}
+                          className={`excel-td-check ${di === 0 ? 'excel-cell--week-start' : ''} ${!isSameMonth(d, monthOfDays) ? 'excel-cell--outside' : ''}`}
                         >
-                          {checked && '✓'}
-                        </button>
-                      </td>
-                    );
-                  })}
-                  <td className="habits-td-pct">{stat?.consistency_pct ?? 0}%</td>
+                          <button
+                            className={`habit-check habit-check--md ${checked ? 'habit-check--on' : ''}`}
+                            onClick={() => onToggle(h.id, ds)}
+                            aria-label={`${h.name} on ${ds}`}
+                          >
+                            {checked && '✓'}
+                          </button>
+                        </td>
+                      );
+                    })
+                  )}
+                  <td className="excel-td-analysis excel-td-goal">{h.goal_per_month}</td>
+                  <td className="excel-td-analysis excel-td-actual">{stat?.total_completions ?? 0}</td>
+                  <td className="excel-td-analysis excel-td-progress">
+                    <div className="excel-progress-track">
+                      <div
+                        className="excel-progress-fill"
+                        style={{ width: `${Math.min(stat?.consistency_pct ?? 0, 100)}%` }}
+                      />
+                    </div>
+                  </td>
                 </tr>
               );
             })}
@@ -385,13 +479,21 @@ function MonthGrid({
 }
 
 // ============================================
-// Tiny SVG area chart (no chart library; matches the Excel green area look)
+// Tiny SVG area chart with optional hover callback
 // ============================================
-function AreaChart({ data, highlightToday }: { data: { date: Date; pct: number }[]; highlightToday?: boolean }) {
+function AreaChart({
+  data,
+  highlightToday,
+  onHover,
+}: {
+  data: { date: Date; pct: number }[];
+  highlightToday?: boolean;
+  onHover?: (idx: number | null) => void;
+}) {
   const today = new Date();
   if (data.length === 0) return null;
   const w = 600;
-  const h = 120;
+  const h = 100;
   const padX = 8;
   const padY = 8;
   const innerW = w - padX * 2;
@@ -408,8 +510,23 @@ function AreaChart({ data, highlightToday }: { data: { date: Date; pct: number }
   const linePath = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ');
   const areaPath = `${linePath} L${pts[pts.length - 1].x},${padY + innerH} L${pts[0].x},${padY + innerH} Z`;
 
+  const handleMove = (e: React.MouseEvent<SVGSVGElement>) => {
+    if (!onHover) return;
+    const svg = e.currentTarget;
+    const rect = svg.getBoundingClientRect();
+    const ratio = (e.clientX - rect.left) / rect.width;
+    const idx = Math.min(data.length - 1, Math.max(0, Math.round(ratio * (data.length - 1))));
+    onHover(idx);
+  };
+
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" className="habits-chart">
+    <svg
+      viewBox={`0 0 ${w} ${h}`}
+      preserveAspectRatio="none"
+      className="habits-chart"
+      onMouseMove={handleMove}
+      onMouseLeave={() => onHover?.(null)}
+    >
       <defs>
         <linearGradient id="habits-area-grad" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="rgba(34,197,94,0.6)" />
