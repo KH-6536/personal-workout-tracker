@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ChevronLeft, ChevronRight, Plus, Pencil, Trash2, Flame, TrendingUp, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Plus, Pencil, Trash2, Flame, TrendingUp, X } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useHabits, useHabitLogs, computeHabitStats } from '../hooks/useHabits';
 import { AppHeader } from '../components/Layout';
@@ -30,7 +30,7 @@ export default function HabitsPage() {
   const fetchStart = ymd(addDays(monthStart, -7));
   const fetchEnd = ymd(addDays(monthEnd, 7));
 
-  const { habits, loading: habitsLoading, createHabit, updateHabit, archiveHabit } = useHabits(user?.id);
+  const { habits, loading: habitsLoading, createHabit, updateHabit, archiveHabit, moveHabit, setHabitPosition } = useHabits(user?.id);
   const { logs, isCompleted, toggle, loading: logsLoading } = useHabitLogs(user?.id, fetchStart, fetchEnd);
 
   // Stats derive from the SAME logs state that toggle mutates → optimistic toggles
@@ -163,19 +163,47 @@ export default function HabitsPage() {
       {/* Per-habit stat cards */}
       {habits.length > 0 && (
         <section className="section">
-          <h3 className="section-title">Per habit</h3>
+          <div className="section-head">
+            <h3 className="section-title">Per habit</h3>
+            <span className="section-hint">Use ↑↓ to reorder</span>
+          </div>
           <div className="habits-stats-grid">
-            {habits.map((h) => {
+            {habits.map((h, i) => {
               const s = statsByHabit[h.id];
+              const isFirst = i === 0;
+              const isLast = i === habits.length - 1;
               return (
                 <div key={h.id} className="habit-stat-card">
                   <div className="habit-stat-head">
+                    <span className="habit-stat-position" title={`Position ${i + 1} of ${habits.length}`}>
+                      {i + 1}
+                    </span>
                     <div className="habit-stat-name">
                       {h.emoji && <span className="habit-emoji">{h.emoji}</span>} {h.name}
                     </div>
-                    <button className="icon-btn icon-btn--sm" onClick={() => setEditingHabit(h)}>
-                      <Pencil size={14} />
-                    </button>
+                    <div className="habit-stat-actions">
+                      <button
+                        className="icon-btn icon-btn--sm"
+                        onClick={() => moveHabit(h.id, 'up')}
+                        disabled={isFirst}
+                        title="Move up"
+                        aria-label={`Move ${h.name} up`}
+                      >
+                        <ChevronUp size={14} />
+                      </button>
+                      <button
+                        className="icon-btn icon-btn--sm"
+                        onClick={() => moveHabit(h.id, 'down')}
+                        disabled={isLast}
+                        title="Move down"
+                        aria-label={`Move ${h.name} down`}
+                      >
+                        <ChevronDown size={14} />
+                      </button>
+                      <button className="icon-btn icon-btn--sm" onClick={() => setEditingHabit(h)} title="Edit">
+                        <Pencil size={14} />
+                      </button>
+                    </div>
                   </div>
                   <div className="habit-stat-nums">
                     <span className="habit-stat-big">{s?.total_completions ?? 0}</span>
@@ -212,9 +240,16 @@ export default function HabitsPage() {
       {editingHabit && (
         <HabitModal
           habit={editingHabit}
+          totalHabits={habits.length}
+          currentPosition={habits.findIndex((h) => h.id === editingHabit.id) + 1}
           onClose={() => setEditingHabit(null)}
-          onSave={async (vals) => {
+          onSave={async (vals, newPosition) => {
             await updateHabit(editingHabit.id, vals);
+            const currentIdx = habits.findIndex((h) => h.id === editingHabit.id);
+            // newPosition is 1-based; convert to 0-based index
+            if (newPosition != null && newPosition - 1 !== currentIdx) {
+              await setHabitPosition(editingHabit.id, newPosition - 1);
+            }
             setEditingHabit(null);
           }}
           onDelete={async () => {
@@ -549,24 +584,32 @@ function AreaChart({
 // ============================================
 function HabitModal({
   habit,
+  totalHabits,
+  currentPosition,
   onClose,
   onSave,
   onDelete,
 }: {
   habit?: Habit;
+  totalHabits?: number;
+  currentPosition?: number;
   onClose: () => void;
-  onSave: (vals: { name: string; emoji: string; goal_per_month: number }) => Promise<void>;
+  onSave: (vals: { name: string; emoji: string; goal_per_month: number }, newPosition?: number) => Promise<void>;
   onDelete?: () => Promise<void>;
 }) {
   const [name, setName] = useState(habit?.name ?? '');
   const [emoji, setEmoji] = useState(habit?.emoji ?? '');
   const [goal, setGoal] = useState(habit?.goal_per_month ?? 31);
+  const [position, setPosition] = useState(currentPosition ?? 1);
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
     if (!name.trim()) return;
     setSaving(true);
-    await onSave({ name: name.trim(), emoji: emoji.trim(), goal_per_month: goal });
+    await onSave(
+      { name: name.trim(), emoji: emoji.trim(), goal_per_month: goal },
+      habit ? position : undefined,
+    );
     setSaving(false);
   };
 
@@ -611,6 +654,19 @@ function HabitModal({
               className="input"
             />
           </label>
+          {habit && totalHabits != null && totalHabits > 1 && (
+            <label className="form-label">
+              Position <span className="form-hint">(1 = top of list)</span>
+              <input
+                type="number"
+                value={position}
+                onChange={(e) => setPosition(parseInt(e.target.value) || 1)}
+                min={1}
+                max={totalHabits}
+                className="input"
+              />
+            </label>
+          )}
         </div>
         <div className="modal-foot">
           {onDelete && (

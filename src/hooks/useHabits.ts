@@ -77,7 +77,62 @@ export function useHabits(userId: string | undefined) {
     );
   }, []);
 
-  return { habits, loading, createHabit, updateHabit, archiveHabit, reorderHabits, refetch: fetchHabits };
+  // Swap a habit one slot up or down. Optimistic — flips local order first,
+  // then persists both affected display_order values.
+  const moveHabit = useCallback(async (habitId: string, direction: 'up' | 'down') => {
+    const idx = habits.findIndex((h) => h.id === habitId);
+    if (idx < 0) return;
+    const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
+    if (swapIdx < 0 || swapIdx >= habits.length) return;
+
+    const a = habits[idx];
+    const b = habits[swapIdx];
+
+    // Optimistic local swap
+    setHabits((prev) => {
+      const next = [...prev];
+      next[idx] = { ...b, display_order: a.display_order };
+      next[swapIdx] = { ...a, display_order: b.display_order };
+      return next;
+    });
+
+    // Persist (parallel — they're independent rows)
+    const [r1, r2] = await Promise.all([
+      supabase.from('habits').update({ display_order: b.display_order }).eq('id', a.id),
+      supabase.from('habits').update({ display_order: a.display_order }).eq('id', b.id),
+    ]);
+    if (r1.error || r2.error) {
+      console.error('[habit reorder] persist failed:', r1.error || r2.error);
+      // Rollback by refetching from source of truth
+      await fetchHabits();
+    }
+  }, [habits, fetchHabits]);
+
+  // Move a habit to an absolute 0-based position. Used by the modal's
+  // "Position" input ("show this habit 1st / 2nd / ...").
+  const setHabitPosition = useCallback(async (habitId: string, newIndex: number) => {
+    const currentIdx = habits.findIndex((h) => h.id === habitId);
+    if (currentIdx < 0) return;
+    const clamped = Math.max(0, Math.min(habits.length - 1, newIndex));
+    if (clamped === currentIdx) return;
+
+    const reordered = [...habits];
+    const [moving] = reordered.splice(currentIdx, 1);
+    reordered.splice(clamped, 0, moving);
+    await reorderHabits(reordered.map((h) => h.id));
+  }, [habits, reorderHabits]);
+
+  return {
+    habits,
+    loading,
+    createHabit,
+    updateHabit,
+    archiveHabit,
+    reorderHabits,
+    moveHabit,
+    setHabitPosition,
+    refetch: fetchHabits,
+  };
 }
 
 // ============================================

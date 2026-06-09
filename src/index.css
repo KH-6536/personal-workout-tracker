@@ -3172,13 +3172,63 @@ textarea {
 .habit-stat-head {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
+  gap: 0.4rem;
   margin-bottom: 0.5rem;
+}
+
+.habit-stat-position {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: var(--bg-input);
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 700;
+  flex-shrink: 0;
 }
 
 .habit-stat-name {
   font-size: 0.85rem;
   font-weight: 600;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.habit-stat-actions {
+  display: inline-flex;
+  gap: 0.2rem;
+  flex-shrink: 0;
+}
+
+.habit-stat-actions .icon-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 0.5rem;
+}
+
+.section-hint {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.form-hint {
+  font-weight: 400;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-left: 0.25rem;
 }
 
 .habit-stat-nums {
