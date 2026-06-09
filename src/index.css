@@ -2451,6 +2451,37 @@ textarea {
   padding: 0.5rem 0;
 }
 
+/* Auto-computed calorie target card (top of Daily Goals modal) */
+.nutrition-goals-calorie-display {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 1rem;
+  text-align: center;
+  margin-bottom: 0.25rem;
+}
+
+.nutrition-goals-calorie-display .ngc-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin-bottom: 0.25rem;
+}
+
+.nutrition-goals-calorie-display .ngc-value {
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: var(--accent);
+  line-height: 1.1;
+}
+
+.nutrition-goals-calorie-display .ngc-hint {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-top: 0.3rem;
+}
+
 /* ============================================
    Nutrition Analytics
    ============================================ */

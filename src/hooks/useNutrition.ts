@@ -27,20 +27,24 @@ export function useNutritionGoals(userId: string | undefined) {
     fat_g: number;
   }) => {
     if (!userId) return;
-    const { data, error } = await supabase
+    // Upsert without .single() — RLS sometimes blocks the SELECT-after-upsert
+    // when the INSERT path runs, returning no rows and erroring out of .single().
+    // We refetch to get the canonical row instead.
+    const { error } = await supabase
       .from('nutrition_goals')
       .upsert({
         user_id: userId,
         ...updates,
         updated_at: new Date().toISOString(),
-      }, { onConflict: 'user_id' })
-      .select()
-      .single();
-    if (!error && data) {
-      setGoals(data);
+      }, { onConflict: 'user_id' });
+    if (error) {
+      console.error('[nutrition goals] save failed:', error);
+      return { error };
     }
-    return { data, error };
-  }, [userId]);
+    // Refetch from source of truth so UI matches DB exactly.
+    await fetchGoals();
+    return { error: null };
+  }, [userId, fetchGoals]);
 
   return { goals, loading, updateGoals, refetch: fetchGoals };
 }

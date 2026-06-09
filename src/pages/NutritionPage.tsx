@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Trash2, Settings, BarChart3, X, Send, Star, Zap } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
@@ -77,23 +77,31 @@ export default function NutritionPage() {
 
   // Goals modal
   const [showGoals, setShowGoals] = useState(false);
+  // Macros only — calorie target is auto-computed from these (4/4/9 kcal/g)
   const [goalForm, setGoalForm] = useState({
-    calorie_target: goals?.calorie_target ?? 2500,
     protein_g: goals?.protein_g ?? 180,
     carbs_g: goals?.carbs_g ?? 250,
     fat_g: goals?.fat_g ?? 80,
   });
 
-  useMemo(() => {
+  // Sync form state from the fetched goals once they arrive.
+  // (Was a useMemo before, which doesn't reliably commit setState during render
+  // and was a likely cause of "refresh shows defaults".)
+  useEffect(() => {
     if (goals) {
       setGoalForm({
-        calorie_target: goals.calorie_target,
         protein_g: goals.protein_g,
         carbs_g: goals.carbs_g,
         fat_g: goals.fat_g,
       });
     }
   }, [goals]);
+
+  // Live-computed calorie target (4 kcal/g protein + 4 kcal/g carbs + 9 kcal/g fat)
+  const computedCalories = useMemo(
+    () => Math.round(goalForm.protein_g * 4 + goalForm.carbs_g * 4 + goalForm.fat_g * 9),
+    [goalForm]
+  );
 
   const navigateDate = useCallback((dir: number) => {
     const d = new Date(selectedDate);
@@ -140,9 +148,16 @@ export default function NutritionPage() {
   }, []);
 
   const handleSaveGoals = useCallback(async () => {
-    await updateGoals(goalForm);
+    const result = await updateGoals({
+      ...goalForm,
+      calorie_target: computedCalories,
+    });
+    if (result?.error) {
+      // Keep modal open so user knows save didn't land
+      return;
+    }
     setShowGoals(false);
-  }, [goalForm, updateGoals]);
+  }, [goalForm, computedCalories, updateGoals]);
 
   // Quick-log a custom or recent food in one tap
   const handleQuickLog = useCallback(async (food: Pick<CustomFood, 'food_name' | 'serving_description' | 'calories' | 'protein_g' | 'carbs_g' | 'fat_g' | 'fiber_g' | 'sugar_g' | 'sodium_mg' | 'micronutrients'> & { id?: string }) => {
@@ -424,18 +439,18 @@ export default function NutritionPage() {
               </button>
             </div>
             <div className="nutrition-goals-form">
-              <label>
-                <span>Calories</span>
-                <input
-                  type="number"
-                  value={goalForm.calorie_target}
-                  onChange={(e) => setGoalForm((p) => ({ ...p, calorie_target: Number(e.target.value) }))}
-                />
-              </label>
+              {/* Auto-computed calorie target — the macros drive this. */}
+              <div className="nutrition-goals-calorie-display">
+                <div className="ngc-label">Calorie target</div>
+                <div className="ngc-value">{computedCalories.toLocaleString()}</div>
+                <div className="ngc-hint">Auto-calculated from macros · 4·4·9 kcal/g</div>
+              </div>
+
               <label>
                 <span>Protein (g)</span>
                 <input
                   type="number"
+                  inputMode="numeric"
                   value={goalForm.protein_g}
                   onChange={(e) => setGoalForm((p) => ({ ...p, protein_g: Number(e.target.value) }))}
                 />
@@ -444,6 +459,7 @@ export default function NutritionPage() {
                 <span>Carbs (g)</span>
                 <input
                   type="number"
+                  inputMode="numeric"
                   value={goalForm.carbs_g}
                   onChange={(e) => setGoalForm((p) => ({ ...p, carbs_g: Number(e.target.value) }))}
                 />
@@ -452,13 +468,11 @@ export default function NutritionPage() {
                 <span>Fat (g)</span>
                 <input
                   type="number"
+                  inputMode="numeric"
                   value={goalForm.fat_g}
                   onChange={(e) => setGoalForm((p) => ({ ...p, fat_g: Number(e.target.value) }))}
                 />
               </label>
-              <div className="nutrition-goals-calc">
-                Macro calories: {Math.round(goalForm.protein_g * 4 + goalForm.carbs_g * 4 + goalForm.fat_g * 9)} cal
-              </div>
               <button className="btn btn-primary btn-large" onClick={handleSaveGoals}>
                 Save Goals
               </button>
