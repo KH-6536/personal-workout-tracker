@@ -71,7 +71,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-haiku-4-5-20251001',
       max_tokens: 2000,
       system: SYSTEM_PROMPT,
       messages: [
@@ -103,6 +103,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   } catch (err) {
     console.error('Food parsing failed:', err);
-    return res.status(500).json({ error: (err as Error).message });
+    return res.status(500).json({ error: 'Could not parse that entry. Try rephrasing it.' });
   }
 }
