@@ -1,11 +1,11 @@
-import { supabaseAdmin } from '../lib/supabase-admin.js';
+import { supabaseAdmin } from '../_lib/supabase-admin.js';
 import {
   getValidAccessToken,
   fetchLatestCycle,
   fetchLatestRecovery,
   fetchLatestSleep,
   fetchBodyMeasurement,
-} from '../lib/whoop.js';
+} from '../_lib/whoop.js';
 
 export async function syncUserData(userId: string) {
   // Get user's tokens

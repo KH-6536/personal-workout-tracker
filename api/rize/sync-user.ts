@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
-import { supabaseAdmin } from '../lib/supabase-admin.js';
-import { fetchDailySummary, yesterdayInTimezone } from '../lib/rize.js';
+import { supabaseAdmin } from '../_lib/supabase-admin.js';
+import { fetchDailySummary, yesterdayInTimezone } from '../_lib/rize.js';
 
 interface RizeConnectionRow {
   user_id: string;

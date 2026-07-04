@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
-import { supabaseAdmin } from '../lib/supabase-admin.js';
+import { supabaseAdmin } from '../_lib/supabase-admin.js';
 
 /**
  * POST /api/rize/disconnect
