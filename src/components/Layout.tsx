@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
-import { Home, Calendar, Layers, Heart, Utensils, LogOut, Dumbbell, CheckSquare } from 'lucide-react';
+import { Home, Calendar, Layers, Heart, Utensils, LogOut, Dumbbell, CheckSquare, CalendarClock } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
 export default function Layout() {
@@ -21,6 +21,10 @@ export default function Layout() {
         <NavLink to="/" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
           <Home size={22} />
           <span>Home</span>
+        </NavLink>
+        <NavLink to="/schedule" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+          <CalendarClock size={22} />
+          <span>Schedule</span>
         </NavLink>
         <NavLink to="/habits" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
           <CheckSquare size={22} />

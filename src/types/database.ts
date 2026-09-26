@@ -272,3 +272,38 @@ export interface RizeConnectionStatus {
   created_at: string;
   updated_at: string;
 }
+
+// ============================================
+// Time-blocking (Schedule page)
+// ============================================
+
+export interface BlockCategory {
+  id: string;
+  user_id: string;
+  name: string;           // normalized key (lowercase, trimmed) — the join value
+  color: string;          // hex
+  icon: string | null;    // lucide icon name
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TimeBlock {
+  id: string;
+  user_id: string;
+  block_date: string;     // YYYY-MM-DD
+  start_time: string;     // HH:MM:SS
+  end_time: string;       // HH:MM:SS
+  title: string;
+  category_name: string | null;
+  notes: string | null;
+  completed_at: string | null;
+  source: 'manual' | 'gcal';
+  external_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// Bundle of the block plus its resolved category (color/icon) for rendering.
+export interface TimeBlockWithCategory extends TimeBlock {
+  category: BlockCategory | null;
+}

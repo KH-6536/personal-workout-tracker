@@ -10,6 +10,7 @@ import HealthPage from './pages/HealthPage';
 import NutritionPage from './pages/NutritionPage';
 import NutritionAnalyticsPage from './pages/NutritionAnalyticsPage';
 import HabitsPage from './pages/HabitsPage';
+import SchedulePage from './pages/SchedulePage';
 import LoadingSpinner from './components/LoadingSpinner';
 
 function ProtectedRoutes() {
@@ -28,6 +29,7 @@ function ProtectedRoutes() {
         <Route path="nutrition" element={<NutritionPage />} />
         <Route path="nutrition/analytics" element={<NutritionAnalyticsPage />} />
         <Route path="habits" element={<HabitsPage />} />
+        <Route path="schedule" element={<SchedulePage />} />
       </Route>
       <Route path="workout/:templateId" element={<ActiveWorkoutPage />} />
     </Routes>
