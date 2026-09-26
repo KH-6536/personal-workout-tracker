@@ -2,14 +2,16 @@ import { useState } from 'react';
 import {
   ChevronLeft, ChevronRight, Plus, X, Check, Trash2, Palette, Circle,
   Dumbbell, Brain, Phone, Utensils, Moon, BookOpen, Footprints, Coffee, Mail, NotebookPen,
+  CalendarSync, RefreshCw, Link2, Link2Off, AlertTriangle,
   type LucideIcon,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useTimeBlocks, iconForTitle } from '../hooks/useTimeBlocks';
+import { useGcalConnection } from '../hooks/useGcalConnection';
 import { AppHeader } from '../components/Layout';
 import LoadingSpinner from '../components/LoadingSpinner';
-import type { TimeBlockWithCategory, BlockCategory } from '../types/database';
-import { addDays, format, isSameDay } from 'date-fns';
+import type { TimeBlockWithCategory, BlockCategory, GcalConnection } from '../types/database';
+import { addDays, format, formatDistanceToNow, isSameDay } from 'date-fns';
 
 // Map the icon-name strings we persist to actual lucide components.
 const ICON_MAP: Record<string, LucideIcon> = {
@@ -67,11 +69,16 @@ export default function SchedulePage() {
   const {
     blocks, categories, loading,
     createBlock, updateBlock, deleteBlock, toggleComplete, updateCategory,
+    refetch,
   } = useTimeBlocks(user?.id, dateStr);
+  const gcal = useGcalConnection(user?.id);
 
   const [showAdd, setShowAdd] = useState(false);
   const [editingBlock, setEditingBlock] = useState<TimeBlockWithCategory | null>(null);
   const [editingCategory, setEditingCategory] = useState<BlockCategory | null>(null);
+  const [showGcalModal, setShowGcalModal] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
   // Track the id of a block that was JUST completed so we can show the reward burst.
   const [celebratingId, setCelebratingId] = useState<string | null>(null);
 
@@ -85,6 +92,26 @@ export default function SchedulePage() {
     if (!wasCompleted) {
       setCelebratingId(block.id);
       window.setTimeout(() => setCelebratingId((id) => (id === block.id ? null : id)), 900);
+    }
+  };
+
+  const handleSync = async (icalUrl?: string) => {
+    setSyncing(true);
+    setSyncMessage(null);
+    try {
+      const result = await gcal.sync(dateStr, icalUrl);
+      const parts = [];
+      if (result.added) parts.push(`+${result.added} new`);
+      if (result.updated) parts.push(`${result.updated} updated`);
+      if (result.removed) parts.push(`-${result.removed} removed`);
+      setSyncMessage(parts.length ? parts.join(' · ') : `${result.event_count} events, nothing changed`);
+      await refetch();
+      setShowGcalModal(false);
+    } catch (err) {
+      setSyncMessage((err as Error).message);
+    } finally {
+      setSyncing(false);
+      window.setTimeout(() => setSyncMessage(null), 4000);
     }
   };
 
@@ -134,6 +161,20 @@ export default function SchedulePage() {
           </div>
         </div>
       </div>
+
+      <GcalConnectCard
+        connection={gcal.connection}
+        loading={gcal.loading}
+        syncing={syncing}
+        syncMessage={syncMessage}
+        onConnect={() => setShowGcalModal(true)}
+        onSync={() => handleSync()}
+        onDisconnect={async () => {
+          await gcal.disconnect();
+          setSyncMessage('Disconnected');
+          window.setTimeout(() => setSyncMessage(null), 3000);
+        }}
+      />
 
       {loading ? (
         <LoadingSpinner message="Loading schedule..." />
@@ -194,6 +235,16 @@ export default function SchedulePage() {
             await updateCategory(editingCategory.id, updates);
             setEditingCategory(null);
           }}
+        />
+      )}
+
+      {showGcalModal && (
+        <GcalConnectModal
+          initialUrl={gcal.connection?.ical_url ?? ''}
+          syncing={syncing}
+          errorMessage={syncMessage && !syncing ? syncMessage : null}
+          onClose={() => setShowGcalModal(false)}
+          onSave={(url) => handleSync(url)}
         />
       )}
     </div>
@@ -508,6 +559,148 @@ function CategoryModal({
             <button className="btn-ghost" onClick={onClose} disabled={saving}>Cancel</button>
             <button className="btn-primary" onClick={handleSave} disabled={saving}>
               {saving ? 'Saving...' : 'Save'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================
+// GcalConnectCard — inline banner shown above the timeline
+// ============================================
+function GcalConnectCard({
+  connection,
+  loading,
+  syncing,
+  syncMessage,
+  onConnect,
+  onSync,
+  onDisconnect,
+}: {
+  connection: GcalConnection | null;
+  loading: boolean;
+  syncing: boolean;
+  syncMessage: string | null;
+  onConnect: () => void;
+  onSync: () => void;
+  onDisconnect: () => void;
+}) {
+  if (loading) return null;
+
+  if (!connection) {
+    return (
+      <button className="sched-gcal-card sched-gcal-connect" onClick={onConnect}>
+        <CalendarSync size={18} />
+        <div className="sched-gcal-text">
+          <div className="sched-gcal-title">Connect Google Calendar</div>
+          <div className="sched-gcal-sub">Pull events for the day into your schedule</div>
+        </div>
+        <Link2 size={16} />
+      </button>
+    );
+  }
+
+  const lastSyncLabel = connection.last_synced_at
+    ? `Synced ${formatDistanceToNow(new Date(connection.last_synced_at), { addSuffix: true })}`
+    : 'Not synced yet';
+
+  return (
+    <div className={`sched-gcal-card sched-gcal-connected ${connection.last_error ? 'has-error' : ''}`}>
+      <CalendarSync size={18} />
+      <div className="sched-gcal-text">
+        <div className="sched-gcal-title">Google Calendar</div>
+        <div className="sched-gcal-sub">
+          {connection.last_error ? (
+            <span className="sched-gcal-error">
+              <AlertTriangle size={12} /> {connection.last_error}
+            </span>
+          ) : syncMessage ? (
+            <span className="sched-gcal-flash">{syncMessage}</span>
+          ) : (
+            lastSyncLabel
+          )}
+        </div>
+      </div>
+      <button
+        className="sched-gcal-btn"
+        onClick={onSync}
+        disabled={syncing}
+        aria-label="Sync now"
+        title="Sync now"
+      >
+        <RefreshCw size={16} className={syncing ? 'sched-spin' : ''} />
+      </button>
+      <button
+        className="sched-gcal-btn"
+        onClick={onDisconnect}
+        disabled={syncing}
+        aria-label="Disconnect"
+        title="Disconnect"
+      >
+        <Link2Off size={16} />
+      </button>
+    </div>
+  );
+}
+
+// ============================================
+// GcalConnectModal — paste your iCal URL
+// ============================================
+function GcalConnectModal({
+  initialUrl,
+  syncing,
+  errorMessage,
+  onClose,
+  onSave,
+}: {
+  initialUrl: string;
+  syncing: boolean;
+  errorMessage: string | null;
+  onClose: () => void;
+  onSave: (url: string) => void;
+}) {
+  const [url, setUrl] = useState(initialUrl);
+  const canSave = url.trim().startsWith('https://') && !syncing;
+
+  return (
+    <div className="modal-backdrop" onClick={syncing ? undefined : onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-head">
+          <h3>Connect Google Calendar</h3>
+          <button className="btn-ghost" onClick={onClose} aria-label="Close" disabled={syncing}>
+            <X size={16} />
+          </button>
+        </div>
+        <div className="modal-body">
+          <p className="sched-gcal-help">
+            In Google Calendar: <strong>Settings → your calendar → "Secret address in
+            iCal format"</strong>. Copy that URL and paste it below. It's private to
+            you — treat it like a password.
+          </p>
+          <label className="form-label">
+            iCal URL
+            <input
+              className="input"
+              placeholder="https://calendar.google.com/calendar/ical/.../basic.ics"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              autoFocus
+            />
+          </label>
+          {errorMessage && (
+            <div className="sched-gcal-error-box">
+              <AlertTriangle size={14} /> {errorMessage}
+            </div>
+          )}
+        </div>
+        <div className="modal-foot">
+          <span />
+          <div className="modal-foot-right">
+            <button className="btn-ghost" onClick={onClose} disabled={syncing}>Cancel</button>
+            <button className="btn-primary" onClick={() => onSave(url.trim())} disabled={!canSave}>
+              {syncing ? 'Syncing...' : 'Save & sync'}
             </button>
           </div>
         </div>

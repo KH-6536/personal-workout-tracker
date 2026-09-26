@@ -307,3 +307,13 @@ export interface TimeBlock {
 export interface TimeBlockWithCategory extends TimeBlock {
   category: BlockCategory | null;
 }
+
+// Google Calendar connection (iCal URL sync).
+export interface GcalConnection {
+  user_id: string;
+  ical_url: string;
+  last_synced_at: string | null;
+  last_error: string | null;
+  created_at: string;
+  updated_at: string;
+}
