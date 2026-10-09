@@ -313,19 +313,25 @@ export default function HomePage() {
         </section>
       )}
 
-      {/* Quick start if no template for today but templates exist */}
-      {!todayTemplate && templates.length > 0 && (
-        <div className="quick-start">
-          <p className="quick-start-label">Quick start a workout:</p>
-          <div className="quick-start-buttons">
-            {templates.map((t) => (
-              <button key={t.id} className="btn btn-outline btn-small" onClick={() => navigate(`/workout/${t.id}`)}>
-                {t.name}
-              </button>
-            ))}
+      {/* Quick start: always show so any split can be started, not just today's */}
+      {(() => {
+        const otherTemplates = templates.filter((t) => t.id !== todayTemplate?.id);
+        if (otherTemplates.length === 0) return null;
+        return (
+          <div className="quick-start">
+            <p className="quick-start-label">
+              {todayTemplate ? 'Or start a different split:' : 'Quick start a workout:'}
+            </p>
+            <div className="quick-start-buttons">
+              {otherTemplates.map((t) => (
+                <button key={t.id} className="btn btn-outline btn-small" onClick={() => navigate(`/workout/${t.id}`)}>
+                  {t.name}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Empty state */}
       {templates.length === 0 && (
